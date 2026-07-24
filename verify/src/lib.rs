@@ -6,7 +6,15 @@ use p256::PublicKey;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod ledger;
 mod webauthn;
+
+/// DIV protocol version (docs/DIV.md v1).
+pub const DIV_VERSION: i64 = 1;
+/// DIV Intent Payload `type` discriminator.
+pub const DIV_INTENT_TYPE: &str = "div-intent-verification";
+/// RECOMMENDED expiry tolerance in seconds (DIV §6.2).
+pub const DEFAULT_CLOCK_SKEW_SECONDS: i64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RequesterAttestation {
@@ -21,12 +29,18 @@ pub struct RequesterIdentity {
     pub attestation: Option<RequesterAttestation>,
 }
 
+/// A DIV Proof Envelope: the signed canonical payload plus the signature metadata needed to verify
+/// it (extended with the WebAuthn assertion components).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalReceipt {
     #[serde(rename = "canonicalPayload")]
     pub canonical_payload: String,
+    /// The intended execution target (display/telemetry only; the RP asserts its own via Expected).
+    #[serde(default)]
+    pub target: Option<String>,
     #[serde(rename = "actionType")]
     pub action_type: Option<String>,
+    /// The DIV `display` field.
     #[serde(rename = "actionDescription")]
     pub action_description: String,
     pub params: Value,
@@ -42,13 +56,14 @@ pub struct ApprovalReceipt {
     #[serde(rename = "clientDataJSON")]
     pub client_data_json: Option<String>,
     pub requester: Option<RequesterIdentity>,
-    #[serde(rename = "expiresAt")]
-    pub expires_at: Option<String>,
     #[serde(rename = "verificationCode")]
     pub verification_code: String,
 }
 
+/// What the relying party asserts. `target` and `nonce` come from the RP's own state — never read
+/// from the receipt (DIV Target Isolation + replay binding).
 pub struct Expected {
+    pub target: String,
     pub nonce: String,
     pub action_type: String,
     pub params: Value,
@@ -68,6 +83,12 @@ pub struct VerifyOptions {
     pub expected_rp_id: Option<String>,
     /// Demand the User-Verified flag (biometric/PIN). Defaults to true when None.
     pub require_user_verification: Option<bool>,
+    /// Opt out of the fail-closed expiry check (DIV §5.8) for post-hoc audit re-verification.
+    pub allow_expired: bool,
+    /// Wall-clock instant (unix seconds) to evaluate expiry against. None = system time now.
+    pub as_of_unix_secs: Option<i64>,
+    /// Clock-skew tolerance in seconds. None = DEFAULT_CLOCK_SKEW_SECONDS.
+    pub clock_skew_seconds: Option<i64>,
 }
 
 /// Recursively stringify JSON values with UTF-16 sorted keys to match JS/Python byte-for-byte.
@@ -107,40 +128,83 @@ pub fn stable_stringify(value: &Value) -> String {
     }
 }
 
-/// Build byte-identical v3 canonical payload matching TypeScript and Python.
-pub fn canonical_authorization_payload_v3(
-    nonce: &str,
+/// Build a byte-identical DIV Intent Payload (docs/DIV.md v1) matching TypeScript, Go and Python.
+/// Builds the full object and serializes it via [`stable_stringify`] (strict RFC 8785 JCS — every
+/// key sorted). Do NOT hand-template key order; the sort is the contract.
+pub fn canonical_intent_payload(
+    target: &str,
     action_type: &str,
-    action_description: &str,
+    display: &str,
     params: &Value,
     requester: &RequesterIdentity,
-    expires_at: Option<&str>,
+    nonce: &str,
+    expires_at: &str,
 ) -> String {
-    let nonce_json = serde_json::to_string(nonce).unwrap();
-    let action_type_json = serde_json::to_string(action_type).unwrap();
-    let action_json = serde_json::to_string(action_description).unwrap();
-    let params_json = stable_stringify(params);
-    let did_json = serde_json::to_string(&requester.did).unwrap();
-
-    let attestation_json = match &requester.attestation {
-        None => "null".to_string(),
-        Some(a) => {
-            let m = serde_json::to_string(&a.method).unwrap();
-            let i = serde_json::to_string(&a.issuer).unwrap();
-            let s = serde_json::to_string(&a.subject).unwrap();
-            format!("{{\"method\":{},\"issuer\":{},\"subject\":{}}}", m, i, s)
-        }
+    let attestation = match &requester.attestation {
+        None => Value::Null,
+        Some(a) => serde_json::json!({
+            "method": a.method,
+            "issuer": a.issuer,
+            "subject": a.subject,
+        }),
     };
+    let obj = serde_json::json!({
+        "v": DIV_VERSION,
+        "type": DIV_INTENT_TYPE,
+        "target": target,
+        "actionType": action_type,
+        "display": display,
+        "params": params,
+        "requester": { "did": requester.did, "attestation": attestation },
+        "nonce": nonce,
+        "expiresAt": expires_at,
+    });
+    stable_stringify(&obj)
+}
 
-    let expires_suffix = match expires_at {
-        Some(exp) => format!(",\"expiresAt\":{}", serde_json::to_string(exp).unwrap()),
-        None => "".to_string(),
-    };
+/// Read a string field out of the canonical payload JSON, or None.
+fn canonical_str_field(canonical: &str, key: &str) -> Option<String> {
+    serde_json::from_str::<Value>(canonical)
+        .ok()
+        .and_then(|v| v.get(key).and_then(|x| x.as_str().map(String::from)))
+}
 
-    format!(
-        "{{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":{},\"actionType\":{},\"action\":{},\"params\":{},\"requester\":{{\"did\":{},\"attestation\":{}}}{}}}",
-        nonce_json, action_type_json, action_json, params_json, did_json, attestation_json, expires_suffix
-    )
+/// Parse an RFC3339 UTC timestamp (`YYYY-MM-DDTHH:MM:SS[.fff]Z`) to unix seconds. UTC only (DIV
+/// mandates UTC `expiresAt`); returns None on any other shape. Zero external dependencies.
+fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
+    let b = s.as_bytes();
+    // Minimum: "YYYY-MM-DDTHH:MM:SSZ" = 20 chars, must end in Z.
+    if b.len() < 20 || *b.last()? != b'Z' {
+        return None;
+    }
+    if b[4] != b'-' || b[7] != b'-' || (b[10] != b'T' && b[10] != b't') || b[13] != b':' || b[16] != b':' {
+        return None;
+    }
+    let year: i64 = s.get(0..4)?.parse().ok()?;
+    let month: i64 = s.get(5..7)?.parse().ok()?;
+    let day: i64 = s.get(8..10)?.parse().ok()?;
+    let hour: i64 = s.get(11..13)?.parse().ok()?;
+    let min: i64 = s.get(14..16)?.parse().ok()?;
+    let sec: i64 = s.get(17..19)?.parse().ok()?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || min > 59 || sec > 60 {
+        return None;
+    }
+    // days_from_civil (Howard Hinnant), then seconds. Fractional seconds are floored (ignored).
+    let y = year - if month <= 2 { 1 } else { 0 };
+    let era = (if y >= 0 { y } else { y - 399 }) / 400;
+    let yoe = y - era * 400;
+    let mp = if month > 2 { month - 3 } else { month + 9 };
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    Some(days * 86400 + hour * 3600 + min * 60 + sec)
+}
+
+fn now_unix_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// Verify an ApprovalReceipt offline (ES256 receipts; WebAuthn receipts fail closed here).
@@ -168,6 +232,20 @@ pub fn verify_approval_receipt_with_options(
         return Err("missing canonicalPayload".to_string());
     }
 
+    // Version / type / nonce gate.
+    let probe: Value = serde_json::from_str(&receipt.canonical_payload)
+        .map_err(|_| "canonicalPayload is not valid JSON".to_string())?;
+    if probe.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
+        return Err("unsupported DIV payload version".to_string());
+    }
+    if probe.get("type").and_then(Value::as_str) != Some(DIV_INTENT_TYPE) {
+        return Err("payload is not a div-intent-verification".to_string());
+    }
+    let payload_nonce = canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
+    if payload_nonce != expected.nonce {
+        return Err("receipt is for a different challenge".to_string());
+    }
+
     if let Some(alg) = &receipt.sig_alg {
         if alg == "AUTO_APPROVED" {
             if !opts.allow_auto_approved {
@@ -180,19 +258,35 @@ pub fn verify_approval_receipt_with_options(
     let requester = receipt
         .requester
         .as_ref()
-        .ok_or("v3 receipt missing requester")?;
+        .ok_or("receipt missing requester")?;
 
-    let recomputed = canonical_authorization_payload_v3(
-        &expected.nonce,
+    let expires_at = canonical_str_field(&receipt.canonical_payload, "expiresAt")
+        .filter(|s| !s.is_empty())
+        .ok_or("receipt missing expiresAt")?;
+
+    let recomputed = canonical_intent_payload(
+        &expected.target,
         &expected.action_type,
         &receipt.action_description,
         &expected.params,
         requester,
-        receipt.expires_at.as_deref(),
+        &payload_nonce,
+        &expires_at,
     );
 
     if recomputed != receipt.canonical_payload {
-        return Err("params/actionType do not match what was approved".to_string());
+        return Err("target/params/actionType do not match what was approved".to_string());
+    }
+
+    // Expiration (DIV §5.8/§6.2). Fail-closed by default; opt out only for audit re-verification.
+    if !opts.allow_expired {
+        let expiry = parse_rfc3339_utc_secs(&expires_at)
+            .ok_or("expiresAt is not a valid RFC3339 UTC timestamp")?;
+        let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
+        let skew = opts.clock_skew_seconds.unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
+        if now > expiry + skew {
+            return Err("proof has expired (set allow_expired for audit re-verification)".to_string());
+        }
     }
 
     let signature_b64 = receipt
@@ -272,13 +366,16 @@ mod tests {
             attestation: None,
         };
         let params = json!({ "environment": "staging" });
-        let canonical = canonical_authorization_payload_v3(
-            "c_8f91a2",
+        // Far-future expiry so the fail-closed expiry check (DIV §5.8) passes without being
+        // time-dependent; expiry itself is exercised by test_expiry_* below.
+        let canonical = canonical_intent_payload(
+            "prod-db-cluster-01",
             "deleteDatabase",
             "Delete staging database",
             &params,
             &requester,
-            Some("2026-07-23T19:30:00Z"),
+            "c_8f91a2",
+            "2999-01-01T00:00:00.000Z",
         );
 
         let sk = test_signing_key();
@@ -287,6 +384,7 @@ mod tests {
 
         let receipt = ApprovalReceipt {
             canonical_payload: canonical,
+            target: Some("prod-db-cluster-01".to_string()),
             action_type: Some("deleteDatabase".to_string()),
             action_description: "Delete staging database".to_string(),
             params: params.clone(),
@@ -297,10 +395,10 @@ mod tests {
             authenticator_data: None,
             client_data_json: None,
             requester: Some(requester),
-            expires_at: Some("2026-07-23T19:30:00Z".to_string()),
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
+            target: "prod-db-cluster-01".to_string(),
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
             params,
@@ -350,13 +448,14 @@ mod tests {
         // Approver signed environment=staging; relying party checks production.
         let (receipt, _) = signed_receipt();
         let expected = Expected {
+            target: "prod-db-cluster-01".to_string(),
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
             params: json!({ "environment": "production" }),
         };
         assert_eq!(
             verify_approval_receipt(&receipt, &expected),
-            Err("params/actionType do not match what was approved".to_string())
+            Err("target/params/actionType do not match what was approved".to_string())
         );
     }
 
@@ -391,7 +490,7 @@ mod tests {
             let canonical = entry["receipt"]["canonicalPayload"].as_str().unwrap_or("");
             // Skip WebAuthn (tested separately) and any non-current canonical version.
             if sig_alg == "WEBAUTHN"
-                || (sig_alg != "AUTO_APPROVED" && canonical_version(canonical) != 3)
+                || (sig_alg != "AUTO_APPROVED" && canonical_version(canonical) != DIV_VERSION)
             {
                 continue;
             }
@@ -400,6 +499,7 @@ mod tests {
             let expect_ok = entry["expectOk"].as_bool().unwrap_or(false);
 
             let expected = Expected {
+                target: receipt.target.clone().unwrap_or_default(),
                 nonce: parse_nonce(&receipt.canonical_payload),
                 action_type: receipt.action_type.clone().unwrap_or_default(),
                 params: receipt.params.clone(),
@@ -457,6 +557,7 @@ mod tests {
         let receipt: ApprovalReceipt =
             serde_json::from_value(doc["receipt"].clone()).expect("deserialize receipt");
         let expected = Expected {
+            target: doc["expected"]["target"].as_str().unwrap().to_string(),
             nonce: doc["expected"]["nonce"].as_str().unwrap().to_string(),
             action_type: doc["expected"]["actionType"].as_str().unwrap().to_string(),
             params: doc["expected"]["params"].clone(),
@@ -540,6 +641,7 @@ mod tests {
     fn test_webauthn_rejects_tampered_params() {
         let v = load_webauthn_vector();
         let tampered = Expected {
+            target: v.expected.target.clone(),
             nonce: v.expected.nonce.clone(),
             action_type: v.expected.action_type.clone(),
             params: json!({ "amount": 999999 }),
@@ -553,7 +655,7 @@ mod tests {
     }
 
     #[test]
-    fn test_canonical_v3_parity() {
+    fn test_canonical_intent_parity() {
         let params = json!({
             "zeta": 1,
             "alpha": 2,
@@ -563,15 +665,76 @@ mod tests {
             did: "did:sakra:service:deploy-pipeline".to_string(),
             attestation: None,
         };
-        let got = canonical_authorization_payload_v3(
-            "c_8f91a2",
+        let got = canonical_intent_payload(
+            "prod-db-cluster-01",
             "deleteDatabase",
             "Delete staging database",
             &params,
             &requester,
-            Some("2026-07-23T19:30:00Z"),
+            "c_8f91a2",
+            "2026-07-23T19:30:00Z",
         );
-        let expected = r#"{"v":3,"type":"agent-authorization","nonce":"c_8f91a2","actionType":"deleteDatabase","action":"Delete staging database","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"did":"did:sakra:service:deploy-pipeline","attestation":null},"expiresAt":"2026-07-23T19:30:00Z"}"#;
+        // Strict RFC 8785 JCS: every key sorted; type/version last.
+        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:sakra:service:deploy-pipeline"},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_expiry_fail_closed_and_allow_expired() {
+        // Build a receipt that expired in 2020.
+        let requester = RequesterIdentity {
+            did: "did:sakra:service:deploy-pipeline".to_string(),
+            attestation: None,
+        };
+        let params = json!({ "environment": "staging" });
+        let canonical = canonical_intent_payload(
+            "prod-db-cluster-01",
+            "deleteDatabase",
+            "Delete staging database",
+            &params,
+            &requester,
+            "c_exp",
+            "2020-01-01T00:00:00.000Z",
+        );
+        let sk = test_signing_key();
+        let sig: Signature = sk.sign(canonical.as_bytes());
+        let spki = sk.verifying_key().to_public_key_der().expect("encode SPKI");
+        let receipt = ApprovalReceipt {
+            canonical_payload: canonical,
+            target: Some("prod-db-cluster-01".to_string()),
+            action_type: Some("deleteDatabase".to_string()),
+            action_description: "Delete staging database".to_string(),
+            params: params.clone(),
+            signer_did: None,
+            signer_public_key: Some(STANDARD.encode(spki.as_bytes())),
+            signature: Some(STANDARD.encode(sig.to_der().as_bytes())),
+            sig_alg: Some("ES256".to_string()),
+            authenticator_data: None,
+            client_data_json: None,
+            requester: Some(requester),
+            verification_code: "1234".to_string(),
+        };
+        let expected = Expected {
+            target: "prod-db-cluster-01".to_string(),
+            nonce: "c_exp".to_string(),
+            action_type: "deleteDatabase".to_string(),
+            params,
+        };
+        // Fail-closed by default.
+        assert!(verify_approval_receipt(&receipt, &expected).is_err());
+        // allow_expired accepts the otherwise-valid proof (audit re-verification).
+        let opts = VerifyOptions { allow_expired: true, ..Default::default() };
+        assert_eq!(
+            verify_approval_receipt_with_options(&receipt, &expected, &opts),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn test_rfc3339_parser() {
+        assert_eq!(parse_rfc3339_utc_secs("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00.000Z"), Some(1_577_836_800));
+        assert_eq!(parse_rfc3339_utc_secs("not-a-date"), None);
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00+02:00"), None); // UTC only
     }
 }

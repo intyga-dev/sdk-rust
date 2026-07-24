@@ -1,0 +1,177 @@
+{
+  "generated": "2026-07-24T19:49:53.154Z",
+  "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by the Go/Rust/Python ledger verifiers. Regenerate ONLY on a deliberate format change.",
+  "domainTags": {
+    "leaf": "0x00",
+    "node": "0x01",
+    "empty": "0x02",
+    "anchor": "0x03"
+  },
+  "hashLeaf": [
+    {
+      "input": "A",
+      "expected": "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d"
+    },
+    {
+      "input": "hello world",
+      "expected": "4eccf34608d31bac5c7becf6006df59005d828181056d092084e341e6bb005bd"
+    }
+  ],
+  "hashPair": [
+    {
+      "left": "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d",
+      "right": "87afe6086fe4571e37657e76281301f189c75ebae1d2eaafb56d578067a1d95e",
+      "expected": "ed692f01f7f6c46930d7ad8f9adad3f9f38b7379cf6a8d2f399a0ba1e914fe25"
+    }
+  ],
+  "sha256Hex": [
+    {
+      "input": "abc",
+      "expected": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    }
+  ],
+  "emptyRoot": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+  "merkleRoots": [
+    {
+      "name": "empty",
+      "leaves": [],
+      "expected": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986"
+    },
+    {
+      "name": "single",
+      "leaves": [
+        "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d"
+      ],
+      "expected": "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d"
+    },
+    {
+      "name": "pair",
+      "leaves": [
+        "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d",
+        "87afe6086fe4571e37657e76281301f189c75ebae1d2eaafb56d578067a1d95e"
+      ],
+      "expected": "ed692f01f7f6c46930d7ad8f9adad3f9f38b7379cf6a8d2f399a0ba1e914fe25"
+    },
+    {
+      "name": "odd-triple-duplicate-last",
+      "leaves": [
+        "c00b4d3c929cb5cc316691ed4636f634576f2c9b2954767234c5274e9dde185d",
+        "87afe6086fe4571e37657e76281301f189c75ebae1d2eaafb56d578067a1d95e",
+        "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2"
+      ],
+      "expected": "9725a8cf4154eb2b9fc5722dc2e65536eb09eba37150859f97132466815de2ae"
+    }
+  ],
+  "leafPreimage": [
+    {
+      "name": "signed-leaf",
+      "row": {
+        "seq": "0",
+        "tenantSeq": "1",
+        "createdAt": "2026-07-24T12:00:00.000Z",
+        "event": "ACTION_APPROVED",
+        "outcome": "SUCCESS",
+        "detail": "event 0",
+        "metadata": {
+          "target": "users",
+          "i": 0
+        },
+        "signerDid": "did:example:human:alice",
+        "signerPublicKey": null,
+        "signedPayload": null,
+        "signature": null,
+        "sigAlg": null,
+        "isBillable": false,
+        "tenantId": "tenant-1",
+        "actorNodeId": "node-a",
+        "subjectNodeId": null,
+        "edgeId": null,
+        "challengeId": null
+      },
+      "canonical": "[\"0\",\"2026-07-24T12:00:00.000Z\",\"ACTION_APPROVED\",\"SUCCESS\",\"event 0\",\"{\\\"i\\\":0,\\\"target\\\":\\\"users\\\"}\",\"did:example:human:alice\",null,null,null,null,false,\"tenant-1\",\"node-a\",null,null,null,\"1\"]",
+      "leafHash": "2ed1e7f5ce2e27febb9dcc8c9fb83b0ca0daa0f90c1fed92e22c3feabe1440bb"
+    },
+    {
+      "name": "plain-leaf",
+      "row": {
+        "seq": "5",
+        "tenantSeq": "6",
+        "createdAt": "2026-07-24T12:00:00.000Z",
+        "event": "ACTION_APPROVED",
+        "outcome": "SUCCESS",
+        "detail": "event 5",
+        "metadata": {
+          "target": "users",
+          "i": 5
+        },
+        "signerDid": null,
+        "signerPublicKey": null,
+        "signedPayload": null,
+        "signature": null,
+        "sigAlg": null,
+        "isBillable": false,
+        "tenantId": "tenant-1",
+        "actorNodeId": "node-a",
+        "subjectNodeId": null,
+        "edgeId": null,
+        "challengeId": null
+      },
+      "canonical": "[\"5\",\"2026-07-24T12:00:00.000Z\",\"ACTION_APPROVED\",\"SUCCESS\",\"event 5\",\"{\\\"i\\\":5,\\\"target\\\":\\\"users\\\"}\",null,null,null,null,null,false,\"tenant-1\",\"node-a\",null,null,null,\"6\"]",
+      "leafHash": "a890e1065f49956b1e048f3939f9ec3adb39d3b611a965cb6e4ca7ab88987047"
+    }
+  ],
+  "inclusion": {
+    "leafRow": {
+      "seq": "5",
+      "tenantSeq": "6",
+      "createdAt": "2026-07-24T12:00:00.000Z",
+      "event": "ACTION_APPROVED",
+      "outcome": "SUCCESS",
+      "detail": "event 5",
+      "metadata": {
+        "target": "users",
+        "i": 5
+      },
+      "signerDid": null,
+      "signerPublicKey": null,
+      "signedPayload": null,
+      "signature": null,
+      "sigAlg": null,
+      "isBillable": false,
+      "tenantId": "tenant-1",
+      "actorNodeId": "node-a",
+      "subjectNodeId": null,
+      "edgeId": null,
+      "challengeId": null
+    },
+    "leaf": "a890e1065f49956b1e048f3939f9ec3adb39d3b611a965cb6e4ca7ab88987047",
+    "blockIndex": "1",
+    "blockRoot": "8a58a41652102ff8ce10bc6e64143113bbe2a74b052e9b0f7a295c876735f6ce",
+    "blockProof": [
+      {
+        "siblingHash": "2e2554eda105644f760c6230fe8163860b68a8f9e4ac662558adcd9d0d4796dc",
+        "siblingPosition": "LEFT"
+      },
+      {
+        "siblingHash": "cb9b95a25aa6f38dec2a346f20487a69e7162e60ea4b0039b59ad5ccc653c248",
+        "siblingPosition": "RIGHT"
+      }
+    ],
+    "checkpointProof": [
+      {
+        "siblingHash": "5c02cdd1d95f9039baacfa783c813ca1e8d09d67dc314b80b00bf075adf2df9b",
+        "siblingPosition": "LEFT"
+      }
+    ],
+    "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53"
+  },
+  "anchor": {
+    "input": {
+      "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53",
+      "timestamp": "2026-07-24T23:59:00.000Z",
+      "issuer": "https://transparency.example.org",
+      "algorithm": "ES256"
+    },
+    "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b"
+  }
+}
