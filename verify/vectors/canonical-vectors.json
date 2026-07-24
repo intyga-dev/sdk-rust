@@ -1,0 +1,441 @@
+{
+  "generated": "2026-07-23T08:03:43.073Z",
+  "note": "Cross-language wire-contract vectors. Consumed by packages/mcp-schemas tests (TS) and packages/sdk-python tests. Regenerate ONLY on a deliberate format change.",
+  "stableStringify": [
+    {
+      "name": "null",
+      "value": null,
+      "expected": "null"
+    },
+    {
+      "name": "empty-object",
+      "value": {},
+      "expected": "{}"
+    },
+    {
+      "name": "empty-array",
+      "value": [],
+      "expected": "[]"
+    },
+    {
+      "name": "scalars",
+      "value": {
+        "s": "x",
+        "b": true,
+        "f": false,
+        "n": null,
+        "i": 42,
+        "neg": -7
+      },
+      "expected": "{\"b\":true,\"f\":false,\"i\":42,\"n\":null,\"neg\":-7,\"s\":\"x\"}"
+    },
+    {
+      "name": "key-sorting",
+      "value": {
+        "zebra": 1,
+        "alpha": 2,
+        "Mango": 3,
+        "0num": 4,
+        "_under": 5
+      },
+      "expected": "{\"0num\":4,\"Mango\":3,\"_under\":5,\"alpha\":2,\"zebra\":1}"
+    },
+    {
+      "name": "nested",
+      "value": {
+        "a": {
+          "c": [
+            1,
+            2,
+            {
+              "z": "deep",
+              "a": null
+            }
+          ],
+          "b": "mid"
+        },
+        "d": []
+      },
+      "expected": "{\"a\":{\"b\":\"mid\",\"c\":[1,2,{\"a\":null,\"z\":\"deep\"}]},\"d\":[]}"
+    },
+    {
+      "name": "unicode-values",
+      "value": {
+        "msg": "Smörgåsbord — 日本語 😀",
+        "quote": "he said \"hi\"\n\tdone\\"
+      },
+      "expected": "{\"msg\":\"Smörgåsbord — 日本語 😀\",\"quote\":\"he said \\\"hi\\\"\\n\\tdone\\\\\"}"
+    },
+    {
+      "name": "astral-key-order",
+      "value": {
+        "�": "replacement",
+        "😀": "emoji",
+        "z": 1
+      },
+      "expected": "{\"z\":1,\"😀\":\"emoji\",\"�\":\"replacement\"}"
+    },
+    {
+      "name": "control-chars",
+      "value": {
+        "c": "a\u0000b\u0007c\u001fd"
+      },
+      "expected": "{\"c\":\"a\\u0000b\\u0007c\\u001fd\"}"
+    },
+    {
+      "name": "line-separators",
+      "value": {
+        "c": "a b c"
+      },
+      "expected": "{\"c\":\"a b c\"}"
+    },
+    {
+      "name": "floats-portable",
+      "value": {
+        "half": 0.5,
+        "tenth": 0.1,
+        "sum": 0.30000000000000004,
+        "small": 0.0001,
+        "big": 9007199254740991,
+        "f16": 9999999999999998
+      },
+      "expected": "{\"big\":9007199254740991,\"f16\":9999999999999998,\"half\":0.5,\"small\":0.0001,\"sum\":0.30000000000000004,\"tenth\":0.1}"
+    },
+    {
+      "name": "int-vs-float",
+      "value": {
+        "i": 3,
+        "arr": [
+          0,
+          1,
+          -1,
+          1000000
+        ]
+      },
+      "expected": "{\"arr\":[0,1,-1,1000000],\"i\":3}"
+    }
+  ],
+  "authorizationPayloads": [
+    {
+      "input": {
+        "nonce": "8f7a2c1e-0000-4000-8000-123456789abc",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        }
+      },
+      "expected": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}"
+    },
+    {
+      "input": {
+        "nonce": "00000000-0000-4000-8000-000000000000",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {}
+      },
+      "expected": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"actionType\":\"backend.action\",\"action\":\"Delete production database\",\"params\":{}}"
+    }
+  ],
+  "authorizationPayloadsV3": [
+    {
+      "input": {
+        "nonce": "9c3f7b2a-0000-4000-8000-abcdef123456",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:sakra:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        }
+      },
+      "expected": "{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"did\":\"did:sakra:agent-007\",\"attestation\":{\"method\":\"gcp-workload-identity\",\"issuer\":\"https://accounts.google.com\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"}}}"
+    },
+    {
+      "input": {
+        "nonce": "00000000-0000-4000-8000-000000000000",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:sakra:key:abc",
+          "attestation": null
+        }
+      },
+      "expected": "{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"actionType\":\"backend.action\",\"action\":\"Delete production database\",\"params\":{},\"requester\":{\"did\":\"did:sakra:key:abc\",\"attestation\":null}}"
+    }
+  ],
+  "actionPayloads": [
+    {
+      "input": {
+        "nonce": "11111111-2222-4333-8444-555555555555",
+        "actionType": "apikey.create",
+        "summary": "Create a personal API key \"ci-bot\"",
+        "params": {
+          "label": "ci-bot",
+          "scopes": [
+            "audit:read"
+          ],
+          "agentDid": null,
+          "humanDid": "did:sakra:key:abc"
+        }
+      },
+      "expected": "{\"v\":2,\"type\":\"console-action\",\"nonce\":\"11111111-2222-4333-8444-555555555555\",\"actionType\":\"apikey.create\",\"summary\":\"Create a personal API key \\\"ci-bot\\\"\",\"params\":{\"agentDid\":null,\"humanDid\":\"did:sakra:key:abc\",\"label\":\"ci-bot\",\"scopes\":[\"audit:read\"]}}"
+    }
+  ],
+  "challengePayloads": [
+    {
+      "input": {
+        "nonce": "aaaa1111-bbbb-4ccc-8ddd-eeee2222ffff",
+        "actionDescription": "Wire $50,000 to vendor ACME-123"
+      },
+      "expected": "{\"v\":1,\"nonce\":\"aaaa1111-bbbb-4ccc-8ddd-eeee2222ffff\",\"action\":\"Wire $50,000 to vendor ACME-123\"}"
+    }
+  ],
+  "enrollPayloads": [
+    {
+      "input": {
+        "token": "tok_0123456789",
+        "publicKey": "BASE64SPKIPLACEHOLDER=="
+      },
+      "expected": "{\"v\":1,\"type\":\"wallet-enroll\",\"token\":\"tok_0123456789\",\"publicKey\":\"BASE64SPKIPLACEHOLDER==\"}"
+    }
+  ],
+  "loginPayloads": [
+    {
+      "input": {
+        "nonce": "abcd0000-1111-4222-8333-444455556666",
+        "accountId": "00000000-0000-0000-0000-000000000000"
+      },
+      "expected": "{\"v\":1,\"type\":\"dashboard-login\",\"nonce\":\"abcd0000-1111-4222-8333-444455556666\",\"accountId\":\"00000000-0000-0000-0000-000000000000\"}"
+    }
+  ],
+  "digests": [
+    {
+      "canonical": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}",
+      "digestHex": "d638dfaa302d64aaa51979976c3fa2290ffe6feaf63d5e332350aa9e5425cb29",
+      "verificationCode": "D638-DFAA"
+    },
+    {
+      "canonical": "abc",
+      "digestHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "verificationCode": "BA78-16BF"
+    },
+    {
+      "canonical": "{}",
+      "digestHex": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "verificationCode": "4413-6FA3"
+    }
+  ],
+  "signerKey": {
+    "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+    "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLwuNoE+0P+e2AUHFjyXgWgt1t0rfutrBTnDaVEJThlOhRANCAAQzO9yA9BPXMTa2tbyF9zfrOchwugjp4pwL1pbW7x/x1KQZVeUB7iK1UWYR51isD/aAIVkVU47hZ3vgF4jN7TP2"
+  },
+  "receipts": [
+    {
+      "name": "es256-raw-p1363",
+      "receipt": {
+        "canonicalPayload": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "J55BG8DoavBB40euuykrEO+KY2U5jw/3CZrHZ+3WBKoGAWYmaR4gI94mtWUWYepBMc9m4yzpxyWejPl51CTqMA==",
+        "sigAlg": "ES256",
+        "verificationCode": "D638-DFAA"
+      },
+      "expectOk": true
+    },
+    {
+      "name": "es256-der",
+      "receipt": {
+        "canonicalPayload": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "MEUCIBCQykrKScs4hA4IDgzdV/BZ2tRehkLPQNNO+v0DOb3vAiEAxshyXMYjkSjAicF1k3saOKnQnM3hXu1juOMWZEyMnck=",
+        "sigAlg": "ES256",
+        "verificationCode": "D638-DFAA"
+      },
+      "expectOk": true
+    },
+    {
+      "name": "tampered-params",
+      "receipt": {
+        "canonicalPayload": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "lKWRgilucHyqzQG1Z1FtouI1MwRzCS2ToLGdftKe4AY6SXnPA0jt1A7UY/OsKYxDDNzxe31TywzJsLp+M0Ntiw==",
+        "sigAlg": "ES256",
+        "verificationCode": "D638-DFAA"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "auto-approved-refused",
+      "receipt": {
+        "canonicalPayload": "{\"v\":2,\"type\":\"agent-authorization\",\"nonce\":\"8f7a2c1e-0000-4000-8000-123456789abc\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "signerDid": "did:sakra:pre-authorized",
+        "signerPublicKey": "pre-authorized",
+        "signature": "pre-authorized",
+        "sigAlg": "AUTO_APPROVED",
+        "verificationCode": "D638-DFAA"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "v3-es256-attested",
+      "receipt": {
+        "canonicalPayload": "{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"did\":\"did:sakra:agent-007\",\"attestation\":{\"method\":\"gcp-workload-identity\",\"issuer\":\"https://accounts.google.com\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"}}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:sakra:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "neTk/Y/qg7uSPGgi4ukcjJaPSVtyEBv/JCRrJmoeaIOnCNa3o4wffQ2wlS0W0Zsrkgt6+skdSwqnR8yL22I2nw==",
+        "sigAlg": "ES256",
+        "verificationCode": "AD96-FDB5"
+      },
+      "expectOk": true
+    },
+    {
+      "name": "v3-es256-unattested-null",
+      "receipt": {
+        "canonicalPayload": "{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"actionType\":\"backend.action\",\"action\":\"Delete production database\",\"params\":{},\"requester\":{\"did\":\"did:sakra:key:abc\",\"attestation\":null}}",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:sakra:key:abc",
+          "attestation": null
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "MEYCIQDV1a1rMMDBaSh3VArChIEvnlaPJDDGRLmmLJINGJTjvwIhAPZpqE/YHpKCzFUYWxMaObsXMxyj7h5sceboSubApYkJ",
+        "sigAlg": "ES256",
+        "verificationCode": "16CA-0944"
+      },
+      "expectOk": true
+    },
+    {
+      "name": "v3-missing-requester",
+      "receipt": {
+        "canonicalPayload": "{\"v\":3,\"type\":\"agent-authorization\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"actionType\":\"payments.wire\",\"action\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"did\":\"did:sakra:agent-007\",\"attestation\":{\"method\":\"gcp-workload-identity\",\"issuer\":\"https://accounts.google.com\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"}}}",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "signerDid": "did:sakra:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMzvcgPQT1zE2trW8hfc36znIcLoI6eKcC9aW1u8f8dSkGVXlAe4itVFmEedYrA/2gCFZFVOO4Wd74BeIze0z9g==",
+        "signature": "khMjsRYW5E3N/x3y7XApivsNBwZeqJS39Uxv4QC9hf4oOZOpdQVu2SHzKlEV/UbsRvksMXHFBndFH6vRjCUN/A==",
+        "sigAlg": "ES256",
+        "verificationCode": "AD96-FDB5"
+      },
+      "expectOk": false
+    }
+  ],
+  "policy": {
+    "rsaPubB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzD7RSnArU3CHTkXpnALDxFg3U2sTNZHiR5chDNaI3oMKDgygT9cR6ZjNpzRvgQA6ImRpxYdvChSvoZPQUxj4H7JtMC9KK/uuR+bo/TU3SukxRkvoa8fQZqMaqSyFmVfEJsiCa8TjDDqspG3DcCKT16qcYAf3zPYOjxaM5TRiD7kxCbzdHua1eB1drdW4NBgSv+TpqNO1d4IilMgEj2DqCffJOieN88DBHnD8IDeVNYrJUw9LaBD5vte6ivo7RHTgPIzEhWjCVIQRQVk7jhSqCgGrWgUKzAzL0uxfvL5Kg0sD7SiQui3tpEYGIJ0lAliyIqM7X67kRr1jL4dS5lKO0QIDAQAB",
+    "rsaPrivB64": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDMPtFKcCtTcIdORemcAsPEWDdTaxM1keJHlyEM1ojegwoODKBP1xHpmM2nNG+BADoiZGnFh28KFK+hk9BTGPgfsm0wL0or+65H5uj9NTdK6TFGS+hrx9BmoxqpLIWZV8QmyIJrxOMMOqykbcNwIpPXqpxgB/fM9g6PFozlNGIPuTEJvN0e5rV4HV2t1bg0GBK/5Omo07V3giKUyASPYOoJ98k6J43zwMEecPwgN5U1islTD0toEPm+17qK+jtEdOA8jMSFaMJUhBFBWTuOFKoKAataBQrMDMvS7F+8vkqDSwPtKJC6Le2kRgYgnSUCWLIioztfruRGvWMvh1LmUo7RAgMBAAECggEAEbIHk/lv54TCVEe+W6PpriMud+249lUzU5yGYoRby1tzDZCOexxZEvIIL0pdtsF8R+qHN3PqbOcp6EfULr7lEGn3B8uxE2p0yQn6eaWYqsbVXA/LjTr8lUfgUXPoB0cRWYLZudiPC0oyFvTjj92PDYpcjf1ivME8tazwfBMzw8TSGHQvfQ8YZ3Duux1z+vG8HIWiK7Xdeq70fWXtcfGNUGFQ0HnOMcfZ5qIxqFCQP7EyQT3YmDQuwt/ipRFO87pySjjtusTakRD6tm2uxaIlC+KDCJHrdfQs/viX+CyDbgd2KqkeO2u6/LH9eZnjgyP2Uy9dsH9V8peIvJkrqhPeIQKBgQDn7lId3YFlnpOPaaQdzKbhIyrJ9pb6gJxtUod37TGSnADwz/rd27H2G39Wt2DihigsBHQlKQsw9mqe5q2xb/Yv8xcgIR1beRyhiL9KWWORMXhb/nHbaIGp+2FfPCtHuEg3GQUULPaC71etGZAVCDC6yN9XIL/oKoTl/xeiRspbHQKBgQDhcPplBtjv+NusuFPo1hjG7SwpMaZE0EiqJtIj29m2Bg6Y2jss6ViookZOGXoQuT0x+19IPS8hSOSbu+0iiSNAtpqGYMBitnQpJIUl/NVn7QaEsOznzCj7SVv6yWl1jupx1sku+pj3FhfRyX3ohn0F6Cli8cosoFjNE368pmgARQKBgFnM5dCYdkSBXML3dUrwdWDQe/3M03JUn7yYaslddoc8jgSvkoOaT9JpnSlXQVUT+rPoWYwV0zZ3AptZ18DPB/RS3A5do/9J6nME/oPsDmgmTmLYJv97/FBze6UjJ+LSEGv87QF900ipITptnmL2U9/ObONQU92xsNlYpq73V9xlAoGAP+nb01CBqGcRQIJxp40rMRqEbplY3iF+uF6RLQFjU6ub79HO/QiazhRTgkjOxnb91nHBraVK+1DDHzPEIwpmKC6c2IQNhu7bN97WsNJhXjlgo7XVNFI5PCSsIwl/EIkYBnYyS1NYkpR85EkPnSCjyUzsjtSl0MkU4+8m+yziR1ECgYEAioM5o/RQOWo50p6/ZvM6avtSxMdu+UrTgcl7eUmDzxuwvT7M+j3iwP93O2JAU1mt+BYE78938yFIK4yAh0Ebn9NR3wolLusRu0/x/QZffAt3uo1dJsrpEv5qnQFfvKDZX1Im4mO/tAv0VZIcntRCgkho6BuNQw9fROxoPT4JhGU=",
+    "plaintext": "{\"rules\":[{\"action\":\"wire_transfer\",\"effect\":\"require_approval\",\"maxAmount\":1000}]}",
+    "blob": "v1.XCF6b4Hd8Ya9It00rapFrbCRGU/3Y/WTzqM0z3SfNOlokx6QnNDf6OUwSDrr7pYgpzTUviaGyLsemmjRsEs2wpt3EVFIp466aKxo1RsZ9bmepRVVczJEYgpg7ufW4ys3ZmPGpVSz3MiwKzt+0JzjH+h35jqwf7YETBC8A2EAmmx0iTtzM0s4nO3UqOrPEij9PvEC4TyNQX8+Lzt4zYAcIy6fRpX/zIf8kvHc9lYgqBZEh60TxVjf+o2OalWyO6uyYF1w5+pbKbvfbaMvQvpgtk+dgxlPh3ysFIrWxGs8b4yNW/xiJYvq976R4eLmfZjDwP/09LcCO5yFJv1HtHxN8Q==.CDzl3LmXHDS8GaZj.BFS/2xcfWgmQ61Bb0ms43r9P8Jp+0ujiZThGK9aa8fr9EdTd2OsrSZBJ7KYA28H14LPUYOPt2a/kizsjO946PrDrcibV47zunbxMUaBIEqmNQ3rX0WwboMuEY6+i0Wm7HsGs"
+  }
+}

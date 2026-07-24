@@ -1,0 +1,18 @@
+[package]
+name = "sakra-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Rust client for SÄKRA: request a challenge, a human approves on their wallet, poll until resolved"
+license = "Apache-2.0"
+
+[features]
+default = ["ureq-transport"]
+# The built-in blocking HTTP transport. Disable to supply your own Transport implementation.
+ureq-transport = ["dep:ureq"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# Offline receipt verification is re-exported so callers can verify what was signed without a second crate.
+sakra-verify = { path = "verify" }
+ureq = { version = "2", optional = true }
