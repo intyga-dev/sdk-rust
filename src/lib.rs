@@ -1,8 +1,8 @@
-//! Rust client for SÄKRA. The primitive is uniform: request a challenge → a human approves on their
+//! Rust client for Intyga. The primitive is uniform: request a challenge → a human approves on their
 //! wallet → poll until resolved. It works for AI agents, humans, and any backend service; the only
 //! difference is which API key/token you hold.
 //!
-//! Offline receipt verification lives in the standalone `sakra-verify` crate and is re-exported here so
+//! Offline receipt verification lives in the standalone `intyga-verify` crate and is re-exported here so
 //! a relying party can re-verify what was signed without a second dependency.
 
 use std::time::{Duration, Instant};
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 // Re-export the offline verifier so SDK consumers can check receipts in-process.
-pub use sakra_verify::{
+pub use intyga_verify::{
     verify_approval_receipt, verify_approval_receipt_with_options, ApprovalReceipt, Expected,
     VerifyOptions,
 };
@@ -137,7 +137,7 @@ impl Default for RequireApprovalOptions {
 /// How many back-to-back polling failures before `require_approval` declares the gateway unreachable.
 const MAX_POLL_ERRORS: u32 = 5;
 
-/// A SÄKRA gateway client generic over its HTTP [`Transport`].
+/// A Intyga gateway client generic over its HTTP [`Transport`].
 pub struct Client<T: Transport> {
     opts: ClientOptions,
     transport: T,

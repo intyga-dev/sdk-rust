@@ -16,10 +16,10 @@
         "ok": true
       }
     },
-    "requesterDid": "did:sakra:agent-web"
+    "requesterDid": "did:intyga:agent-web"
   },
   "receipt": {
-    "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $4,200 to \\\"ACME-web\\\" — approved via passkey\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"wa_11111111-2222-4000-8000-abcdefabcdef\",\"params\":{\"amount\":4200,\"meta\":{\"ok\":true,\"tags\":[\"urgent\"]},\"vendor\":\"ACME-web\"},\"requester\":{\"attestation\":null,\"did\":\"did:sakra:agent-web\"},\"target\":\"prod-payments-web\",\"type\":\"div-intent-verification\",\"v\":1}",
+    "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $4,200 to \\\"ACME-web\\\" — approved via passkey\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"wa_11111111-2222-4000-8000-abcdefabcdef\",\"params\":{\"amount\":4200,\"meta\":{\"ok\":true,\"tags\":[\"urgent\"]},\"vendor\":\"ACME-web\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-web\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":true,\"requiredApprovals\":1},\"target\":\"prod-payments-web\",\"type\":\"div-intent-verification\",\"v\":1}",
     "target": "prod-payments-web",
     "actionType": "payments.wire",
     "actionDescription": "Wire $4,200 to \"ACME-web\" — approved via passkey",
@@ -34,15 +34,15 @@
       }
     },
     "requester": {
-      "did": "did:sakra:agent-web",
+      "did": "did:intyga:agent-web",
       "attestation": null
     },
-    "signerDid": "did:sakra:user:passkey-holder",
-    "signerPublicKey": "pQECAyYgASFYIN2cymhLfgeb8vrAt7r6OBY1QuR3g6mWcVTQnhzqMiwEIlggdkRznj5Ns8Dx6tDVeOour/5K+je/Ec6NW2Tm2lS6das=",
-    "signature": "MEUCIQDYIerwwntjRf0Qznd40XrecdAjwC5aOceWeZNlUmKAxAIgKCJHdqpWe7BElJeYj7aDRKFjHeyoNZY4KPMxZDutw6U=",
+    "signerDid": "did:intyga:user:passkey-holder",
+    "signerPublicKey": "pQECAyYgASFYICc0FR+BKSZqua+LrIlSKbslkY9nbQkPQqFBmlMIYWqdIlggWmTliiLAZ/240aTiyQDZvDASPgiEhVwA8zJZtHWHfAc=",
+    "signature": "MEUCIQDVSZLprtEcxhVA80vX6fvvZ8H30sanfTOosMWls22/EgIgKDKwyHvTY4A6kyGV+yNBIyAPTSEE7ZgaszWDuQdnieE=",
     "sigAlg": "WEBAUTHN",
     "authenticatorData": "KAWYKbEFHwTvAxGQZ8DOCeBSd2EokPjgh08djs4a4DQFAAAABA==",
-    "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKaFkzUnBiMjVVZVhCbElqb2ljR0Y1YldWdWRITXVkMmx5WlNJc0ltUnBjM0JzWVhraU9pSlhhWEpsSUNRMExESXdNQ0IwYnlCY0lrRkRUVVV0ZDJWaVhDSWc0b0NVSUdGd2NISnZkbVZrSUhacFlTQndZWE56YTJWNUlpd2laWGh3YVhKbGMwRjBJam9pTWprNU9TMHdNUzB3TVZRd01Eb3dNRG93TUM0d01EQmFJaXdpYm05dVkyVWlPaUozWVY4eE1URXhNVEV4TVMweU1qSXlMVFF3TURBdE9EQXdNQzFoWW1Oa1pXWmhZbU5rWldZaUxDSndZWEpoYlhNaU9uc2lZVzF2ZFc1MElqbzBNakF3TENKdFpYUmhJanA3SW05cklqcDBjblZsTENKMFlXZHpJanBiSW5WeVoyVnVkQ0pkZlN3aWRtVnVaRzl5SWpvaVFVTk5SUzEzWldJaWZTd2ljbVZ4ZFdWemRHVnlJanA3SW1GMGRHVnpkR0YwYVc5dUlqcHVkV3hzTENKa2FXUWlPaUprYVdRNmMyRnJjbUU2WVdkbGJuUXRkMlZpSW4wc0luUmhjbWRsZENJNkluQnliMlF0Y0dGNWJXVnVkSE10ZDJWaUlpd2lkSGx3WlNJNkltUnBkaTFwYm5SbGJuUXRkbVZ5YVdacFkyRjBhVzl1SWl3aWRpSTZNWDAiLCJvcmlnaW4iOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSJ9",
-    "verificationCode": "418B-E1E4"
+    "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKaFkzUnBiMjVVZVhCbElqb2ljR0Y1YldWdWRITXVkMmx5WlNJc0ltUnBjM0JzWVhraU9pSlhhWEpsSUNRMExESXdNQ0IwYnlCY0lrRkRUVVV0ZDJWaVhDSWc0b0NVSUdGd2NISnZkbVZrSUhacFlTQndZWE56YTJWNUlpd2laWGh3YVhKbGMwRjBJam9pTWprNU9TMHdNUzB3TVZRd01Eb3dNRG93TUM0d01EQmFJaXdpYm05dVkyVWlPaUozWVY4eE1URXhNVEV4TVMweU1qSXlMVFF3TURBdE9EQXdNQzFoWW1Oa1pXWmhZbU5rWldZaUxDSndZWEpoYlhNaU9uc2lZVzF2ZFc1MElqbzBNakF3TENKdFpYUmhJanA3SW05cklqcDBjblZsTENKMFlXZHpJanBiSW5WeVoyVnVkQ0pkZlN3aWRtVnVaRzl5SWpvaVFVTk5SUzEzWldJaWZTd2ljbVZ4ZFdWemRHVnlJanA3SW1GMGRHVnpkR0YwYVc5dUlqcHVkV3hzTENKa2FXUWlPaUprYVdRNmFXNTBlV2RoT21GblpXNTBMWGRsWWlKOUxDSnlaWEYxYVhKbGJXVnVkQ0k2ZXlKaGJHeHZkMlZrUVdGbmRXbGtjeUk2VzEwc0luSmxjWFZsYzNSbGNrTmhibTV2ZEVGd2NISnZkbVVpT21aaGJITmxMQ0p5WlhGMWFYSmxTR0Z5WkhkaGNtVkxaWGtpT25SeWRXVXNJbkpsY1hWcGNtVmtRWEJ3Y205MllXeHpJam94ZlN3aWRHRnlaMlYwSWpvaWNISnZaQzF3WVhsdFpXNTBjeTEzWldJaUxDSjBlWEJsSWpvaVpHbDJMV2x1ZEdWdWRDMTJaWEpwWm1sallYUnBiMjRpTENKMklqb3hmUSIsIm9yaWdpbiI6Imh0dHBzOi8vYXBwLmV4YW1wbGUuY29tIn0=",
+    "verificationCode": "1637-540F"
   }
 }

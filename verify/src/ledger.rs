@@ -1,6 +1,6 @@
 //! DEWP audit-ledger verification (docs/DEWP.md) — Rust port.
 //!
-//! Byte-identical to `@sakra-trust/verify` (ledger-*.ts) and the Go/Python ports, locked by the shared
+//! Byte-identical to `@intyga/verify` (ledger-*.ts) and the Go/Python ports, locked by the shared
 //! vectors (packages/mcp-schemas/vectors/ledger-vectors.json).
 //!
 //! Domain separation: 0x00 leaf, 0x01 node, 0x02 empty root, 0x03 anchor. Node children are hex-decoded
@@ -99,7 +99,7 @@ pub fn verify_merkle_proof(leaf: &str, proof: &[ProofStep], root: &str) -> bool 
     h == root
 }
 
-/// Read a leaf-row field as a JSON Value (String or Null), from the DEWP sakra.v1 profile row.
+/// Read a leaf-row field as a JSON Value (String or Null), from the DEWP intyga.v1 profile row.
 fn field<'a>(row: &'a Value, key: &str) -> Value {
     row.get(key).cloned().unwrap_or(Value::Null)
 }

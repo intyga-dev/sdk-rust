@@ -1,11 +1,13 @@
 //! WebAuthn (passkey) receipt verification.
 //!
-//! Mirrors the TypeScript (`@sakra-trust/verify`) and Python verifiers byte-for-byte: a minimal
+//! Mirrors the TypeScript (`@intyga/verify`) and Python verifiers byte-for-byte: a minimal
 //! CBOR reader walks the COSE_Key, the assertion is pinned to the expected origin and RP ID, user
 //! presence/verification is enforced, the challenge must equal base64url(canonicalPayload), and the
 //! ES256 signature is checked over `authenticatorData ‖ SHA-256(clientDataJSON)`.
 
-use crate::{parse_p256_public_key, verify_p256_signature, ApprovalReceipt, VerifyOptions};
+use crate::{
+    parse_p256_public_key, verify_p256_signature, ApprovalReceipt, ApprovalWitness, VerifyOptions,
+};
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine as _;
 use p256::ecdsa::VerifyingKey;
@@ -200,18 +202,27 @@ struct ClientData {
     challenge: String,
     #[serde(default)]
     origin: String,
+    /// True when the ceremony ran inside a cross-origin frame. `origin` cannot detect this: an
+    /// embedded RP page reports the RP's OWN origin and rpIdHash matches too, so this flag is the
+    /// only signal separating "approved on our page" from "approved inside someone else's page"
+    /// (W3C WebAuthn L3 §7.2 step 9).
+    #[serde(rename = "crossOrigin", default)]
+    cross_origin: bool,
 }
 
-/// Verify a WEBAUTHN receipt. Requires `opts.expected_origin` and `opts.expected_rp_id`.
-pub(crate) fn verify_webauthn(
+/// Verify one WEBAUTHN witness against an already-TRUSTED key. Requires `opts.expected_origin` and
+/// `opts.expected_rp_id`. The key comes from the caller's trust anchor — never from the receipt.
+pub(crate) fn verify_webauthn_witness(
+    witness: &ApprovalWitness,
+    trusted_key: &str,
     receipt: &ApprovalReceipt,
     opts: &VerifyOptions,
 ) -> Result<(), String> {
-    let authenticator_data = receipt
+    let authenticator_data = witness
         .authenticator_data
         .as_ref()
         .ok_or("WebAuthn receipt missing authenticatorData or clientDataJSON")?;
-    let client_data_json = receipt
+    let client_data_json = witness
         .client_data_json
         .as_ref()
         .ok_or("WebAuthn receipt missing authenticatorData or clientDataJSON")?;
@@ -240,6 +251,9 @@ pub(crate) fn verify_webauthn(
     if client_data.origin != expected_origin {
         return Err("assertion origin does not match expected_origin".to_string());
     }
+    if client_data.cross_origin && !opts.allow_cross_origin.unwrap_or(false) {
+        return Err("assertion was produced in a cross-origin frame (crossOrigin=true)".to_string());
+    }
     let expected_challenge = URL_SAFE_NO_PAD.encode(receipt.canonical_payload.as_bytes());
     let client_challenge = client_data.challenge.trim_end_matches('=');
     if client_challenge != expected_challenge {
@@ -266,21 +280,14 @@ pub(crate) fn verify_webauthn(
         return Err("authenticatorData user-verified flag is not set".to_string());
     }
 
-    let public_key_b64 = receipt
-        .signer_public_key
-        .as_ref()
-        .ok_or("missing signature or public key")?;
+    // The COSE key is parsed from the TRUSTED key, not the receipt's copy.
     let cose_buf = STANDARD
-        .decode(public_key_b64)
-        .map_err(|_| "invalid signerPublicKey base64".to_string())?;
+        .decode(trusted_key)
+        .map_err(|_| "invalid trusted key base64".to_string())?;
     let verifying_key = parse_cose_p256_key(&cose_buf)?;
 
-    let signature_b64 = receipt
-        .signature
-        .as_ref()
-        .ok_or("missing signature or public key")?;
     let sig_bytes = STANDARD
-        .decode(signature_b64)
+        .decode(&witness.signature)
         .map_err(|_| "invalid signature base64".to_string())?;
 
     let client_data_hash = Sha256::digest(&client_data_buf);
@@ -290,7 +297,7 @@ pub(crate) fn verify_webauthn(
     if verify_p256_signature(&verifying_key, &signed_data, &sig_bytes) {
         Ok(())
     } else {
-        Err("WebAuthn signature does not verify against signer key".to_string())
+        Err("WebAuthn signature does not verify against the trusted signer key".to_string())
     }
 }
 

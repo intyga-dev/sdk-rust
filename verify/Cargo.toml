@@ -1,8 +1,8 @@
 [package]
-name = "sakra-verify"
+name = "intyga-verify"
 version = "0.1.0"
 edition = "2021"
-description = "Zero-dependency offline receipt verifier for SÄKRA witness receipts"
+description = "Zero-dependency offline receipt verifier for Intyga witness receipts"
 license = "Apache-2.0"
 
 [dependencies]

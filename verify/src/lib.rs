@@ -23,10 +23,43 @@ pub struct RequesterAttestation {
     pub subject: String,
 }
 
+/// The approval policy in force, frozen at challenge creation and SIGNED into the intent payload.
+///
+/// Without it in the signed bytes, a 3-of-3 hardware-pinned receipt is byte-for-byte identical to a
+/// 1-of-1 one, so a relying party still has to trust the gateway for the whole policy. Offline
+/// checkability differs per field: `required_approvals` and `requester_cannot_approve` are fully
+/// verifiable; `require_hardware_key` only partially (an assertion proves WebAuthn, not the
+/// authenticator model); `allowed_aaguids` not at all (the AAGUID is registration data).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovalRequirement {
+    pub required_approvals: u32,
+    pub require_hardware_key: bool,
+    #[serde(default)]
+    pub allowed_aaguids: Vec<String>,
+    pub requester_cannot_approve: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RequesterIdentity {
     pub did: String,
     pub attestation: Option<RequesterAttestation>,
+}
+
+/// One approver's signature over the canonical payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApprovalWitness {
+    #[serde(rename = "signerDid", default)]
+    pub signer_did: String,
+    #[serde(rename = "signerPublicKey")]
+    pub signer_public_key: String,
+    pub signature: String,
+    #[serde(rename = "sigAlg", default)]
+    pub sig_alg: Option<String>,
+    #[serde(rename = "authenticatorData", default)]
+    pub authenticator_data: Option<String>,
+    #[serde(rename = "clientDataJSON", default)]
+    pub client_data_json: Option<String>,
 }
 
 /// A DIV Proof Envelope: the signed canonical payload plus the signature metadata needed to verify
@@ -44,6 +77,11 @@ pub struct ApprovalReceipt {
     #[serde(rename = "actionDescription")]
     pub action_description: String,
     pub params: Value,
+    /// EVERY witness signature over `canonical_payload` — one entry per approver. Emitting only the
+    /// first approval made an M-of-N receipt indistinguishable from a 1-of-1 one, so the quorum
+    /// could not be checked offline at all. Empty/absent for AUTO_APPROVED.
+    #[serde(default)]
+    pub signatures: Option<Vec<ApprovalWitness>>,
     #[serde(rename = "signerDid")]
     pub signer_did: Option<String>,
     #[serde(rename = "signerPublicKey")]
@@ -60,13 +98,60 @@ pub struct ApprovalReceipt {
     pub verification_code: String,
 }
 
-/// What the relying party asserts. `target` and `nonce` come from the RP's own state — never read
-/// from the receipt (DIV Target Isolation + replay binding).
+/// The approver keys the relying party trusts, resolved from its OWN key-management policy.
+///
+/// This is the single most important verification input. Without it, verification would use the
+/// public key carried INSIDE the receipt, which proves only that the receipt is internally
+/// consistent — per the DIV threat model anyone able to hand you a receipt (including the untrusted
+/// agent) could have minted that keypair. DIV §3 Invariant 3 / §5 step 3 require the Approver key to
+/// come from deployment policy; this type is that step.
+pub enum ApproverTrustAnchor {
+    /// A direct allowlist of base64 SPKI (ES256) or COSE (WebAuthn) keys.
+    PublicKeys(Vec<String>),
+    /// A DID allowlist plus the caller's own resolver. Return None for an unknown DID.
+    Dids {
+        dids: Vec<String>,
+        resolve: Box<dyn Fn(&str) -> Option<String>>,
+    },
+}
+
+/// What the relying party asserts. `target`, `nonce` and `approvers` come from the RP's own state —
+/// never read from the receipt (DIV Target Isolation + replay binding + Invariant 3).
 pub struct Expected {
     pub target: String,
     pub nonce: String,
     pub action_type: String,
     pub params: Value,
+    /// REQUIRED. There is deliberately no default: a receipt must not vouch for its own signer.
+    pub approvers: ApproverTrustAnchor,
+}
+
+impl ApproverTrustAnchor {
+    /// Keys we will accept this witness under, each tagged with the identity it represents so a
+    /// quorum counts distinct APPROVERS. In `PublicKeys` mode the identity is the key itself: the
+    /// receipt's `signerDid` is unverified there, and counting it would let one approver claim to be
+    /// three. We deliberately do NOT compare the presented key to the trusted one — a mismatched key
+    /// simply fails to verify, and byte-equality is wrong for COSE, which has many valid encodings
+    /// of one P-256 key.
+    fn candidates(&self, signer_did: &str) -> Result<Vec<(String, String)>, String> {
+        match self {
+            ApproverTrustAnchor::PublicKeys(keys) => {
+                if keys.is_empty() {
+                    return Err("trusted approver allowlist is empty".to_string());
+                }
+                Ok(keys.iter().map(|k| (k.clone(), k.clone())).collect())
+            }
+            ApproverTrustAnchor::Dids { dids, resolve } => {
+                if signer_did.is_empty() || !dids.iter().any(|d| d == signer_did) {
+                    return Err(format!("signer {signer_did} is not an authorized approver"));
+                }
+                match resolve(signer_did) {
+                    Some(key) => Ok(vec![(key, signer_did.to_string())]),
+                    None => Err(format!("no trusted key could be resolved for {signer_did}")),
+                }
+            }
+        }
+    }
 }
 
 /// Relying-party context required to verify certain receipts. The WebAuthn expectations are
@@ -77,6 +162,8 @@ pub struct VerifyOptions {
     /// Opt in to attesting policy AUTO_APPROVED receipts, which carry no human signature.
     /// Off by default: such receipts fail closed.
     pub allow_auto_approved: bool,
+    /// Accept an assertion produced inside a cross-origin frame. Defaults to false (refuse).
+    pub allow_cross_origin: Option<bool>,
     /// Exact origin the assertion must carry, e.g. "https://app.example.com".
     pub expected_origin: Option<String>,
     /// RP ID the authenticatorData must hash to, e.g. "app.example.com".
@@ -102,7 +189,18 @@ pub fn stable_stringify(value: &Value) -> String {
                 "false".to_string()
             }
         }
-        Value::Number(n) => n.to_string(),
+        Value::Number(n) => {
+            // serde_json's Display is NOT the ES6 Number::toString RFC 8785 §3.2.2.3 mandates: it
+            // prints -0.0 and 0.0 with a decimal point, where JS emits "0". Producers refuse to sign
+            // numbers outside the portable range (see isPortableNumber in @intyga/mcp-schemas), so
+            // normalising zero is all that is needed for the values that can legitimately appear.
+            if let Some(f) = n.as_f64() {
+                if f == 0.0 {
+                    return "0".to_string();
+                }
+            }
+            n.to_string()
+        }
         Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "null".to_string()),
         Value::Array(arr) => {
             let elems: Vec<String> = arr.iter().map(stable_stringify).collect();
@@ -137,6 +235,7 @@ pub fn canonical_intent_payload(
     display: &str,
     params: &Value,
     requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
     nonce: &str,
     expires_at: &str,
 ) -> String {
@@ -148,6 +247,10 @@ pub fn canonical_intent_payload(
             "subject": a.subject,
         }),
     };
+    // The SET is the policy: sort so two identical allowlists written in different orders sign
+    // identically. Clone first — mutating the caller's vector would be a surprising side effect.
+    let mut aaguids = requirement.allowed_aaguids.clone();
+    aaguids.sort();
     let obj = serde_json::json!({
         "v": DIV_VERSION,
         "type": DIV_INTENT_TYPE,
@@ -156,6 +259,12 @@ pub fn canonical_intent_payload(
         "display": display,
         "params": params,
         "requester": { "did": requester.did, "attestation": attestation },
+        "requirement": {
+            "requiredApprovals": requirement.required_approvals,
+            "requireHardwareKey": requirement.require_hardware_key,
+            "allowedAaguids": aaguids,
+            "requesterCannotApprove": requirement.requester_cannot_approve,
+        },
         "nonce": nonce,
         "expiresAt": expires_at,
     });
@@ -264,12 +373,21 @@ pub fn verify_approval_receipt_with_options(
         .filter(|s| !s.is_empty())
         .ok_or("receipt missing expiresAt")?;
 
+    // The requirement is part of the SIGNED bytes, so reading it back from the payload is not
+    // circular: a forged value changes the string and fails the byte comparison below.
+    let requirement: ApprovalRequirement = serde_json::from_str::<Value>(&receipt.canonical_payload)
+        .ok()
+        .and_then(|v| v.get("requirement").cloned())
+        .and_then(|v| serde_json::from_value(v).ok())
+        .ok_or("receipt payload is missing the signed approval requirement")?;
+
     let recomputed = canonical_intent_payload(
         &expected.target,
         &expected.action_type,
         &receipt.action_description,
         &expected.params,
         requester,
+        &requirement,
         &payload_nonce,
         &expires_at,
     );
@@ -289,28 +407,115 @@ pub fn verify_approval_receipt_with_options(
         }
     }
 
-    let signature_b64 = receipt
-        .signature
-        .as_ref()
-        .ok_or("missing signature or public key")?;
-    let public_key_b64 = receipt
-        .signer_public_key
-        .as_ref()
-        .ok_or("missing signature or public key")?;
-
-    if receipt.sig_alg.as_deref() == Some("WEBAUTHN") {
-        return webauthn::verify_webauthn(receipt, opts);
+    let witnesses = witnesses_of(receipt);
+    if witnesses.is_empty() {
+        return Err("missing signature or public key".to_string());
     }
 
+    // Count DISTINCT approvers whose signature verifies under a key we independently trust. Distinct
+    // is load-bearing: without it, N copies of one approver's signature satisfy an N-of-M quorum.
+    let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut failures: Vec<String> = Vec::new();
+    for witness in &witnesses {
+        let candidates = match expected.approvers.candidates(&witness.signer_did) {
+            Ok(c) => c,
+            Err(reason) => {
+                failures.push(reason);
+                continue;
+            }
+        };
+        let mut matched: Option<String> = None;
+        let mut last = "signature does not verify against any trusted approver key".to_string();
+        for (key, identity) in candidates {
+            match verify_witness(witness, &key, receipt, opts) {
+                Ok(()) => {
+                    matched = Some(identity);
+                    break;
+                }
+                Err(why) => last = why,
+            }
+        }
+        let Some(identity) = matched else {
+            failures.push(last);
+            continue;
+        };
+        // A hardware-key policy is only partially checkable offline: a bare P-256 key carries no
+        // attestation at all, so it can never satisfy the requirement, while a WebAuthn assertion is
+        // accepted without proving the authenticator's model.
+        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+            failures.push(format!(
+                "signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential",
+                witness.signer_did
+            ));
+            continue;
+        }
+        // Four-eyes, verified offline against the requester in the same signed payload.
+        if requirement.requester_cannot_approve && witness.signer_did == requester.did {
+            failures.push(format!(
+                "four-eyes: requester {} cannot approve their own action",
+                witness.signer_did
+            ));
+            continue;
+        }
+        verified.insert(identity);
+    }
+
+    let required = requirement.required_approvals.max(1) as usize;
+    if verified.len() < required {
+        let detail = if failures.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", failures.join("; "))
+        };
+        return Err(format!(
+            "quorum not met: {} of {} required approver signatures verified{}",
+            verified.len(),
+            required,
+            detail
+        ));
+    }
+    Ok(())
+}
+
+/// Normalize a receipt to a witness list: `signatures` if present, else the single-signature fields.
+fn witnesses_of(receipt: &ApprovalReceipt) -> Vec<ApprovalWitness> {
+    if let Some(sigs) = &receipt.signatures {
+        if !sigs.is_empty() {
+            return sigs.clone();
+        }
+    }
+    match (&receipt.signer_public_key, &receipt.signature) {
+        (Some(key), Some(sig)) => vec![ApprovalWitness {
+            signer_did: receipt.signer_did.clone().unwrap_or_default(),
+            signer_public_key: key.clone(),
+            signature: sig.clone(),
+            sig_alg: receipt.sig_alg.clone(),
+            authenticator_data: receipt.authenticator_data.clone(),
+            client_data_json: receipt.client_data_json.clone(),
+        }],
+        _ => Vec::new(),
+    }
+}
+
+/// Verify one witness signature using an already-TRUSTED key.
+fn verify_witness(
+    witness: &ApprovalWitness,
+    trusted_key: &str,
+    receipt: &ApprovalReceipt,
+    opts: &VerifyOptions,
+) -> Result<(), String> {
+    if witness.sig_alg.as_deref() == Some("WEBAUTHN") {
+        return webauthn::verify_webauthn_witness(witness, trusted_key, receipt, opts);
+    }
     // ES256: the human's key signed the canonical payload bytes directly.
     let pub_bytes = STANDARD
-        .decode(public_key_b64)
-        .map_err(|_| "invalid signerPublicKey base64".to_string())?;
+        .decode(trusted_key)
+        .map_err(|_| "invalid trusted key base64".to_string())?;
     let sig_bytes = STANDARD
-        .decode(signature_b64)
+        .decode(&witness.signature)
         .map_err(|_| "invalid signature base64".to_string())?;
     let verifying_key = parse_p256_public_key(&pub_bytes)
-        .ok_or_else(|| "failed to parse signerPublicKey".to_string())?;
+        .ok_or_else(|| "failed to parse trusted approver key".to_string())?;
     if verify_p256_signature(
         &verifying_key,
         receipt.canonical_payload.as_bytes(),
@@ -318,7 +523,7 @@ pub fn verify_approval_receipt_with_options(
     ) {
         Ok(())
     } else {
-        Err("signature does not verify against signer key".to_string())
+        Err("signature does not verify against the trusted signer key".to_string())
     }
 }
 
@@ -362,7 +567,7 @@ mod tests {
 
     fn signed_receipt() -> (ApprovalReceipt, Expected) {
         let requester = RequesterIdentity {
-            did: "did:sakra:service:deploy-pipeline".to_string(),
+            did: "did:intyga:service:deploy-pipeline".to_string(),
             attestation: None,
         };
         let params = json!({ "environment": "staging" });
@@ -374,6 +579,7 @@ mod tests {
             "Delete staging database",
             &params,
             &requester,
+            &default_requirement(),
             "c_8f91a2",
             "2999-01-01T00:00:00.000Z",
         );
@@ -388,13 +594,14 @@ mod tests {
             action_type: Some("deleteDatabase".to_string()),
             action_description: "Delete staging database".to_string(),
             params: params.clone(),
-            signer_did: Some("did:sakra:user:alice".to_string()),
+            signer_did: Some("did:intyga:user:alice".to_string()),
             signer_public_key: Some(STANDARD.encode(spki.as_bytes())),
             signature: Some(STANDARD.encode(sig.to_der().as_bytes())),
             sig_alg: Some("ES256".to_string()),
             authenticator_data: None,
             client_data_json: None,
             requester: Some(requester),
+            signatures: None,
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
@@ -402,6 +609,7 @@ mod tests {
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
             params,
+            approvers: ApproverTrustAnchor::PublicKeys(vec![STANDARD.encode(spki.as_bytes())]),
         };
         (receipt, expected)
     }
@@ -437,21 +645,24 @@ mod tests {
         let sk = test_signing_key();
         let other: Signature = sk.sign(b"a completely different message");
         receipt.signature = Some(STANDARD.encode(other.to_der().as_bytes()));
-        assert_eq!(
-            verify_approval_receipt(&receipt, &expected),
-            Err("signature does not verify against signer key".to_string())
+        // The failure is now reported through the quorum, which names the underlying reason.
+        let err = verify_approval_receipt(&receipt, &expected).expect_err("must not verify");
+        assert!(
+            err.contains("does not verify against the trusted signer key"),
+            "unexpected reason: {err}"
         );
     }
 
     #[test]
     fn test_tampered_params_are_rejected() {
         // Approver signed environment=staging; relying party checks production.
-        let (receipt, _) = signed_receipt();
+        let (receipt, base) = signed_receipt();
         let expected = Expected {
             target: "prod-db-cluster-01".to_string(),
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
             params: json!({ "environment": "production" }),
+            approvers: base.approvers,
         };
         assert_eq!(
             verify_approval_receipt(&receipt, &expected),
@@ -503,6 +714,12 @@ mod tests {
                 nonce: parse_nonce(&receipt.canonical_payload),
                 action_type: receipt.action_type.clone().unwrap_or_default(),
                 params: receipt.params.clone(),
+                // For a golden vector the committed file is the enrollment record, so pinning its
+                // key is the legitimate resolution step — it still comes from outside the verifier.
+                approvers: ApproverTrustAnchor::PublicKeys(vec![receipt
+                    .signer_public_key
+                    .clone()
+                    .unwrap_or_default()]),
             };
 
             let result = verify_approval_receipt(&receipt, &expected);
@@ -561,6 +778,10 @@ mod tests {
             nonce: doc["expected"]["nonce"].as_str().unwrap().to_string(),
             action_type: doc["expected"]["actionType"].as_str().unwrap().to_string(),
             params: doc["expected"]["params"].clone(),
+            approvers: ApproverTrustAnchor::PublicKeys(vec![receipt
+                .signer_public_key
+                .clone()
+                .unwrap_or_default()]),
         };
         WaVector {
             rp_id: doc["rpId"].as_str().unwrap().to_string(),
@@ -645,6 +866,11 @@ mod tests {
             nonce: v.expected.nonce.clone(),
             action_type: v.expected.action_type.clone(),
             params: json!({ "amount": 999999 }),
+            approvers: ApproverTrustAnchor::PublicKeys(vec![v
+                .receipt
+                .signer_public_key
+                .clone()
+                .unwrap_or_default()]),
         };
         let res = verify_approval_receipt_with_options(
             &v.receipt,
@@ -652,6 +878,16 @@ mod tests {
             &wa_opts(Some(&v.origin), Some(&v.rp_id)),
         );
         assert!(res.is_err(), "tampered params must not verify");
+    }
+
+    /// The no-rule-matched policy: single-sig, no hardware requirement, no four-eyes.
+    fn default_requirement() -> ApprovalRequirement {
+        ApprovalRequirement {
+            required_approvals: 1,
+            require_hardware_key: false,
+            allowed_aaguids: vec![],
+            requester_cannot_approve: false,
+        }
     }
 
     #[test]
@@ -662,8 +898,15 @@ mod tests {
             "mid": { "z": 1, "a": 2 }
         });
         let requester = RequesterIdentity {
-            did: "did:sakra:service:deploy-pipeline".to_string(),
+            did: "did:intyga:service:deploy-pipeline".to_string(),
             attestation: None,
+        };
+        // Deliberately UNSORTED allowedAaguids: the builder sorts, and this pins that it does.
+        let requirement = ApprovalRequirement {
+            required_approvals: 2,
+            require_hardware_key: true,
+            allowed_aaguids: vec!["b-aaguid".to_string(), "a-aaguid".to_string()],
+            requester_cannot_approve: true,
         };
         let got = canonical_intent_payload(
             "prod-db-cluster-01",
@@ -671,11 +914,13 @@ mod tests {
             "Delete staging database",
             &params,
             &requester,
+            &requirement,
             "c_8f91a2",
             "2026-07-23T19:30:00Z",
         );
-        // Strict RFC 8785 JCS: every key sorted; type/version last.
-        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:sakra:service:deploy-pipeline"},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
+        // Strict RFC 8785 JCS: every key sorted; type/version last. Byte-for-byte the string the TS
+        // reference implementation (@intyga/mcp-schemas) emits for the same input.
+        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
         assert_eq!(got, expected);
     }
 
@@ -683,7 +928,7 @@ mod tests {
     fn test_expiry_fail_closed_and_allow_expired() {
         // Build a receipt that expired in 2020.
         let requester = RequesterIdentity {
-            did: "did:sakra:service:deploy-pipeline".to_string(),
+            did: "did:intyga:service:deploy-pipeline".to_string(),
             attestation: None,
         };
         let params = json!({ "environment": "staging" });
@@ -693,6 +938,7 @@ mod tests {
             "Delete staging database",
             &params,
             &requester,
+            &default_requirement(),
             "c_exp",
             "2020-01-01T00:00:00.000Z",
         );
@@ -712,6 +958,7 @@ mod tests {
             authenticator_data: None,
             client_data_json: None,
             requester: Some(requester),
+            signatures: None,
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
@@ -719,6 +966,7 @@ mod tests {
             nonce: "c_exp".to_string(),
             action_type: "deleteDatabase".to_string(),
             params,
+            approvers: ApproverTrustAnchor::PublicKeys(vec![STANDARD.encode(spki.as_bytes())]),
         };
         // Fail-closed by default.
         assert!(verify_approval_receipt(&receipt, &expected).is_err());

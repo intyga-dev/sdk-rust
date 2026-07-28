@@ -1,30 +1,30 @@
-# sakra-sdk — SÄKRA client for Rust
+# intyga-sdk — Intyga client for Rust
 
 Gate any high-risk backend action behind a real human approval. The primitive is uniform: **request a challenge → a human approves with a passkey or security key → poll until resolved** — the same client works for scripts, pipelines, and AI agents.
 
 This crate **bundles the offline verifier**, re-exporting it, so you can request an approval *and* independently verify the receipt without adding a second dependency.
 
-> Status: **not yet published** to crates.io. The standalone verifier also ships on its own as [`sakra-verify`](https://github.com/SAKRA-trust/verify-rust).
+> Status: **not yet published** to crates.io. The standalone verifier also ships on its own as [`intyga-verify`](https://github.com/intyga-dev/verify-rust).
 
 ## Add it
 
 ```sh
-cargo add sakra-sdk
+cargo add intyga-sdk
 ```
 
 ## Require a human approval before a high-risk action
 
 ```rust
-use sakra_sdk::{
+use intyga_sdk::{
     verify_approval_receipt_with_options, ApprovalStatus, AuthorizeOptions, Client, ClientOptions,
     Expected, RequireApprovalOptions, VerifyOptions,
 };
 use serde_json::json;
 
 let mut client = Client::new(ClientOptions {
-    gateway_url: "https://api.sakra.com".into(),
-    client_id: std::env::var("SAKRA_CLIENT_ID").ok(),
-    client_secret: std::env::var("SAKRA_CLIENT_SECRET").ok(),
+    gateway_url: "https://api.intyga.com".into(),
+    client_id: std::env::var("INTYGA_CLIENT_ID").ok(),
+    client_secret: std::env::var("INTYGA_CLIENT_SECRET").ok(),
     ..Default::default()
 });
 
@@ -41,7 +41,7 @@ if r.status != ApprovalStatus::Approved {
     return Err("not authorized".into());
 }
 
-// Optional hard binding before executing — no SÄKRA secret involved:
+// Optional hard binding before executing — no Intyga secret involved:
 let expected = Expected {
     nonce: r.nonce.clone().unwrap(),
     action_type: "wipe_production".into(),
@@ -59,9 +59,9 @@ let client = Client::with_transport(opts, MyTransport);
 ```
 
 ## Also available in
-- TypeScript — [`@sakra-trust/sdk`](https://github.com/SAKRA-trust/sdk)
-- Python — [`sdk-python`](https://github.com/SAKRA-trust/sdk-python)
-- Go — [`sdk-go`](https://github.com/SAKRA-trust/sdk-go)
+- TypeScript — [`@intyga/sdk`](https://github.com/intyga-dev/sdk)
+- Python — [`sdk-python`](https://github.com/intyga-dev/sdk-python)
+- Go — [`sdk-go`](https://github.com/intyga-dev/sdk-go)
 
 ## License
 
