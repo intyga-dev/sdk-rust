@@ -13,8 +13,26 @@ mod webauthn;
 pub const DIV_VERSION: i64 = 1;
 /// DIV Intent Payload `type` discriminator.
 pub const DIV_INTENT_TYPE: &str = "div-intent-verification";
+/// Offline approval (DIV §5a.2): a normal quorum approval collected OUT OF BAND at incident time
+/// because the gateway is unreachable. The relying party builds the challenge itself, humans sign it
+/// on a disconnected device, and this verifier checks the result.
+///
+/// The distinct type lives INSIDE the signed bytes, so an offline proof can never verify as a normal
+/// approval, or the reverse — even for a byte-identical action, because the reconstructed payload
+/// differs and the signature comparison fails.
+pub const DIV_OFFLINE_INTENT_TYPE: &str = "div-offline-intent";
+/// Delegation (DIV §5a.5): a pre-signed statement transferring the AUTHORITY TO APPROVE one
+/// pre-declared action to named local operators. It authorizes NOTHING on its own —
+/// [`verify_approval_receipt`] refuses this type outright, with no opt-in. Use [`verify_delegation`].
+pub const DIV_DELEGATION_TYPE: &str = "div-delegation";
 /// RECOMMENDED expiry tolerance in seconds (DIV §6.2).
 pub const DEFAULT_CLOCK_SKEW_SECONDS: i64 = 30;
+/// Hard cap on an offline proof's validity window, enforced at verification and not only at mint. An
+/// offline relying party has no revocation channel, so the short window is the only bound (DIV §5a.3).
+pub const MAX_OFFLINE_WINDOW_MINUTES: i64 = 60;
+/// Hard cap on a delegation's window (DIV §5a.6). Hours, not weeks: a delegation cannot be recalled
+/// from a relying party that is offline.
+pub const MAX_DELEGATION_WINDOW_HOURS: i64 = 72;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RequesterAttestation {
@@ -113,6 +131,18 @@ pub enum ApproverTrustAnchor {
         dids: Vec<String>,
         resolve: Box<dyn Fn(&str) -> Option<String>>,
     },
+    /// A DID allowlist whose resolver returns EVERY key bound to one DID.
+    ///
+    /// An approver commonly holds a software key plus one or more registered authenticators, and any
+    /// of them is legitimately theirs. Returning them all keeps the identity intact instead of forcing
+    /// callers into `PublicKeys` mode and losing the DID binding — which would make quorum count
+    /// credentials instead of people, so one approver with three keys could satisfy a 3-of-N. Every key
+    /// returned here counts as that ONE approver, and a delegation (DIV §5a.6) needs this mode because
+    /// it names identities.
+    DidsMultiKey {
+        dids: Vec<String>,
+        resolve: Box<dyn Fn(&str) -> Vec<String>>,
+    },
 }
 
 /// What the relying party asserts. `target`, `nonce` and `approvers` come from the RP's own state —
@@ -134,6 +164,29 @@ impl ApproverTrustAnchor {
     /// simply fails to verify, and byte-equality is wrong for COSE, which has many valid encodings
     /// of one P-256 key.
     fn candidates(&self, signer_did: &str) -> Result<Vec<(String, String)>, String> {
+        self.candidates_restricted(signer_did, None)
+    }
+
+    /// `candidates` plus an optional narrowing to the identities a delegation names (DIV §5a.6 step
+    /// 3). Applied ON TOP of the trust anchor, never instead of it: a delegation says WHO may approve,
+    /// and the anchor still says which key is actually theirs.
+    fn candidates_restricted(
+        &self,
+        signer_did: &str,
+        restrict_to: Option<&[String]>,
+    ) -> Result<Vec<(String, String)>, String> {
+        // A delegation names identities, and in `PublicKeys` mode `signerDid` is an unverified string —
+        // enforcing `delegatedTo` against it would be security theatre. Refuse rather than pretend.
+        if restrict_to.is_some() {
+            if let ApproverTrustAnchor::PublicKeys(_) = self {
+                return Err("a delegation names approver identities, so it requires a DID-mode trust anchor; in PublicKeys mode signerDid is unverified and delegatedTo cannot be enforced".to_string());
+            }
+        }
+        if let Some(named) = restrict_to {
+            if !named.iter().any(|d| d == signer_did) {
+                return Err(format!("signer {signer_did} is not named in the delegation"));
+            }
+        }
         match self {
             ApproverTrustAnchor::PublicKeys(keys) => {
                 if keys.is_empty() {
@@ -149,6 +202,21 @@ impl ApproverTrustAnchor {
                     Some(key) => Ok(vec![(key, signer_did.to_string())]),
                     None => Err(format!("no trusted key could be resolved for {signer_did}")),
                 }
+            }
+            ApproverTrustAnchor::DidsMultiKey { dids, resolve } => {
+                if signer_did.is_empty() || !dids.iter().any(|d| d == signer_did) {
+                    return Err(format!("signer {signer_did} is not an authorized approver"));
+                }
+                // All keys for one DID share that DID as their identity, so quorum still counts one.
+                let keys: Vec<(String, String)> = resolve(signer_did)
+                    .into_iter()
+                    .filter(|k| !k.is_empty())
+                    .map(|k| (k, signer_did.to_string()))
+                    .collect();
+                if keys.is_empty() {
+                    return Err(format!("no trusted key could be resolved for {signer_did}"));
+                }
+                Ok(keys)
             }
         }
     }
@@ -176,6 +244,36 @@ pub struct VerifyOptions {
     pub as_of_unix_secs: Option<i64>,
     /// Clock-skew tolerance in seconds. None = DEFAULT_CLOCK_SKEW_SECONDS.
     pub clock_skew_seconds: Option<i64>,
+    /// Opt in to accepting an OFFLINE APPROVAL (DIV §5a.3). Off by default, exactly like
+    /// `allow_auto_approved`: set it at the SPECIFIC call permitted to run under one, never globally.
+    /// A process-wide default would make every gated action accept an out-of-band approval.
+    ///
+    /// It weakens nothing else: the quorum, four-eyes and target binding signed into the payload are
+    /// still enforced, the window is capped at [`MAX_OFFLINE_WINDOW_MINUTES`], and a proof whose signed
+    /// policy demands a hardware key is REFUSED because that cannot be satisfied offline.
+    pub allow_offline: bool,
+    /// A delegation ALREADY verified by [`verify_delegation`], substituting the eligible approver set
+    /// and the quorum for this one verification (DIV §5a.6). Only meaningful with `allow_offline`.
+    pub delegation: Option<VerifiedDelegation>,
+}
+
+/// A delegation whose own signature, quorum and window have been checked by [`verify_delegation`].
+/// It is an INPUT to a later approval check, never a substitute for one.
+#[derive(Debug, Clone, Default)]
+pub struct VerifiedDelegation {
+    /// Identities permitted to approve at incident time, deduplicated.
+    pub delegated_to: Vec<String>,
+    /// How many distinct members of `delegated_to` must sign. Same width as
+    /// `ApprovalRequirement::required_approvals`, which it is compared against.
+    pub delegated_quorum: u32,
+    /// The single action this delegation covers. All three must equal what is being executed.
+    pub target: String,
+    pub action_type: String,
+    pub params: Value,
+    /// The delegation's OWN nonce — for the audit trail, never for authorization.
+    pub nonce: String,
+    pub signers: Vec<String>,
+    pub expires_at: String,
 }
 
 /// Recursively stringify JSON values with UTF-16 sorted keys to match JS/Python byte-for-byte.
@@ -239,6 +337,27 @@ pub fn canonical_intent_payload(
     nonce: &str,
     expires_at: &str,
 ) -> String {
+    let (req, rq) = canonical_common(requester, requirement);
+    let obj = serde_json::json!({
+        "v": DIV_VERSION,
+        "type": DIV_INTENT_TYPE,
+        "target": target,
+        "actionType": action_type,
+        "display": display,
+        "params": params,
+        "requester": req,
+        "requirement": rq,
+        "nonce": nonce,
+        "expiresAt": expires_at,
+    });
+    stable_stringify(&obj)
+}
+
+/// The requester + requirement projection shared by all three canonical builders.
+///
+/// One definition rather than three copies: these bytes are the contract, and a field added to one
+/// builder but not the others is exactly the drift the golden vectors exist to catch.
+fn canonical_common(requester: &RequesterIdentity, requirement: &ApprovalRequirement) -> (Value, Value) {
     let attestation = match &requester.attestation {
         None => Value::Null,
         Some(a) => serde_json::json!({
@@ -251,24 +370,91 @@ pub fn canonical_intent_payload(
     // identically. Clone first — mutating the caller's vector would be a surprising side effect.
     let mut aaguids = requirement.allowed_aaguids.clone();
     aaguids.sort();
-    let obj = serde_json::json!({
-        "v": DIV_VERSION,
-        "type": DIV_INTENT_TYPE,
-        "target": target,
-        "actionType": action_type,
-        "display": display,
-        "params": params,
-        "requester": { "did": requester.did, "attestation": attestation },
-        "requirement": {
+    (
+        serde_json::json!({ "did": requester.did, "attestation": attestation }),
+        serde_json::json!({
             "requiredApprovals": requirement.required_approvals,
             "requireHardwareKey": requirement.require_hardware_key,
             "allowedAaguids": aaguids,
             "requesterCannotApprove": requirement.requester_cannot_approve,
-        },
+        }),
+    )
+}
+
+/// Build a byte-identical OFFLINE APPROVAL payload (DIV §5a.2), pinned by the
+/// `offlineIntentPayloads` golden vectors and matching TypeScript, Go and Python.
+///
+/// Deliberately a separate function rather than a `type` argument on [`canonical_intent_payload`], so
+/// the ordinary approval path cannot accidentally emit an offline payload.
+///
+/// `challenged_at` exists so a verifier can bound the validity WINDOW, not merely the expiry: a
+/// payload minted with an over-long `expires_at` is otherwise indistinguishable from a correct one.
+#[allow(clippy::too_many_arguments)]
+pub fn canonical_offline_intent_payload(
+    target: &str,
+    action_type: &str,
+    display: &str,
+    params: &Value,
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+    nonce: &str,
+    challenged_at: &str,
+    expires_at: &str,
+) -> String {
+    let (req, rq) = canonical_common(requester, requirement);
+    stable_stringify(&serde_json::json!({
+        "v": DIV_VERSION,
+        "type": DIV_OFFLINE_INTENT_TYPE,
+        "target": target,
+        "actionType": action_type,
+        "display": display,
+        "params": params,
+        "requester": req,
+        "requirement": rq,
         "nonce": nonce,
+        "challengedAt": challenged_at,
         "expiresAt": expires_at,
-    });
-    stable_stringify(&obj)
+    }))
+}
+
+/// Build a byte-identical DELEGATION payload (DIV §5a.5) — a signed statement about WHO MAY APPROVE,
+/// not about what may run.
+///
+/// `delegated_to` is sorted because it is a SET, exactly as `allowed_aaguids` is. `requirement`
+/// describes the quorum that signed this delegation; `delegated_quorum` is how many of `delegated_to`
+/// must sign at incident time. Two different quorums, so both are in the signed bytes.
+#[allow(clippy::too_many_arguments)]
+pub fn canonical_delegation_payload(
+    target: &str,
+    action_type: &str,
+    display: &str,
+    params: &Value,
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+    delegated_to: &[String],
+    delegated_quorum: i64,
+    nonce: &str,
+    sealed_at: &str,
+    expires_at: &str,
+) -> String {
+    let (req, rq) = canonical_common(requester, requirement);
+    let mut delegates = delegated_to.to_vec();
+    delegates.sort();
+    stable_stringify(&serde_json::json!({
+        "v": DIV_VERSION,
+        "type": DIV_DELEGATION_TYPE,
+        "target": target,
+        "actionType": action_type,
+        "display": display,
+        "params": params,
+        "requester": req,
+        "requirement": rq,
+        "delegatedTo": delegates,
+        "delegatedQuorum": delegated_quorum,
+        "nonce": nonce,
+        "sealedAt": sealed_at,
+        "expiresAt": expires_at,
+    }))
 }
 
 /// Read a string field out of the canonical payload JSON, or None.
@@ -347,8 +533,24 @@ pub fn verify_approval_receipt_with_options(
     if probe.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
         return Err("unsupported DIV payload version".to_string());
     }
-    if probe.get("type").and_then(Value::as_str) != Some(DIV_INTENT_TYPE) {
+    let payload_type = probe.get("type").and_then(Value::as_str).unwrap_or_default();
+    // A DELEGATION authorizes nothing (DIV §5a.5). Refused here unconditionally — there is deliberately
+    // NO option that would let one through, because a delegation that could authorize its own action
+    // would be exactly the pre-signed bearer capability the design exists to avoid.
+    if payload_type == DIV_DELEGATION_TYPE {
+        return Err("this is a delegation, which authorizes no action on its own — verify it with verify_delegation and pass the result as opts.delegation, together with an offline approval signed by the delegated operators".to_string());
+    }
+    let offline = payload_type == DIV_OFFLINE_INTENT_TYPE;
+    if !offline && payload_type != DIV_INTENT_TYPE {
         return Err("payload is not a div-intent-verification".to_string());
+    }
+    if offline && !opts.allow_offline {
+        return Err("this is an offline approval; set allow_offline at the specific call site permitted to run under one".to_string());
+    }
+    // A delegation only ever substitutes the approver set for an OFFLINE proof. Accepting it against an
+    // ordinary gateway-mediated receipt would silently replace the quorum the gateway enforced.
+    if opts.delegation.is_some() && !offline {
+        return Err("a delegation can only substitute the approver set for an offline approval".to_string());
     }
     let payload_nonce = canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
     if payload_nonce != expected.nonce {
@@ -357,6 +559,11 @@ pub fn verify_approval_receipt_with_options(
 
     if let Some(alg) = &receipt.sig_alg {
         if alg == "AUTO_APPROVED" {
+            // An offline approval with no human signature is a contradiction: the entire premise is that
+            // humans signed out of band, so `allow_auto_approved` must not rescue it.
+            if offline {
+                return Err("an offline approval cannot be auto-approved — there is no human signature to verify".to_string());
+            }
             if !opts.allow_auto_approved {
                 return Err("AUTO_APPROVED receipts are refused by default".to_string());
             }
@@ -381,16 +588,85 @@ pub fn verify_approval_receipt_with_options(
         .and_then(|v| serde_json::from_value(v).ok())
         .ok_or("receipt payload is missing the signed approval requirement")?;
 
-    let recomputed = canonical_intent_payload(
-        &expected.target,
-        &expected.action_type,
-        &receipt.action_description,
-        &expected.params,
-        requester,
-        &requirement,
-        &payload_nonce,
-        &expires_at,
-    );
+    // Offline proofs carry `challengedAt` so the validity WINDOW can be bounded here, not merely at mint.
+    let mut challenged_at = String::new();
+    if offline {
+        challenged_at = canonical_str_field(&receipt.canonical_payload, "challengedAt")
+            .filter(|s| !s.is_empty())
+            .ok_or("offline proof is missing challengedAt")?;
+        let challenged = parse_rfc3339_utc_secs(&challenged_at)
+            .ok_or("challengedAt is not a valid RFC3339 UTC timestamp")?;
+        if let Some(expiry) = parse_rfc3339_utc_secs(&expires_at) {
+            let window_secs = expiry - challenged;
+            if window_secs < 0 {
+                return Err("offline proof expires before it was challenged".to_string());
+            }
+            if window_secs > MAX_OFFLINE_WINDOW_MINUTES * 60 {
+                return Err(format!(
+                    "offline window is {:.1} minutes, over the {MAX_OFFLINE_WINDOW_MINUTES}-minute maximum",
+                    window_secs as f64 / 60.0
+                ));
+            }
+        }
+        // A hardware-key policy CANNOT be satisfied offline (DIV §5a.3 step 4). WebAuthn needs a secure
+        // context and an RP ID an offline signing surface will not match, so an offline witness is
+        // always a bare key. Accepting the proof anyway would silently downgrade the policy the approver
+        // attested to, so it is refused instead — fail closed, and say why.
+        if requirement.require_hardware_key {
+            return Err("the signed policy requires a hardware-backed WebAuthn credential, which cannot be produced offline — this action cannot be approved out of band (DIV §5a.3)".to_string());
+        }
+    }
+
+    // A delegation substitutes WHO may approve and HOW MANY, and nothing else (DIV §5a.6). Every
+    // agreement check is on the SIGNED bytes of both proofs, so neither can widen the other.
+    let mut delegated_to: Option<Vec<String>> = None;
+    let mut delegated_quorum: Option<u32> = None;
+    if let Some(d) = &opts.delegation {
+        if d.target != expected.target {
+            return Err("the delegation was issued for a different target".to_string());
+        }
+        if d.action_type != expected.action_type {
+            return Err("the delegation was issued for a different actionType".to_string());
+        }
+        if stable_stringify(&d.params) != stable_stringify(&expected.params) {
+            return Err("the delegation was issued for different params".to_string());
+        }
+        // The offline payload's signed quorum must equal the delegated one, so the operators signed the
+        // policy their signatures are being counted toward rather than a different one.
+        if requirement.required_approvals != d.delegated_quorum {
+            return Err(format!(
+                "offline proof declares {} required approval(s) but the delegation delegates a quorum of {}",
+                requirement.required_approvals, d.delegated_quorum
+            ));
+        }
+        delegated_to = Some(d.delegated_to.clone());
+        delegated_quorum = Some(d.delegated_quorum);
+    }
+
+    let recomputed = if offline {
+        canonical_offline_intent_payload(
+            &expected.target,
+            &expected.action_type,
+            &receipt.action_description,
+            &expected.params,
+            requester,
+            &requirement,
+            &payload_nonce,
+            &challenged_at,
+            &expires_at,
+        )
+    } else {
+        canonical_intent_payload(
+            &expected.target,
+            &expected.action_type,
+            &receipt.action_description,
+            &expected.params,
+            requester,
+            &requirement,
+            &payload_nonce,
+            &expires_at,
+        )
+    };
 
     if recomputed != receipt.canonical_payload {
         return Err("target/params/actionType do not match what was approved".to_string());
@@ -417,7 +693,10 @@ pub fn verify_approval_receipt_with_options(
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut failures: Vec<String> = Vec::new();
     for witness in &witnesses {
-        let candidates = match expected.approvers.candidates(&witness.signer_did) {
+        let candidates = match expected
+            .approvers
+            .candidates_restricted(&witness.signer_did, delegated_to.as_deref())
+        {
             Ok(c) => c,
             Err(reason) => {
                 failures.push(reason);
@@ -460,7 +739,12 @@ pub fn verify_approval_receipt_with_options(
         verified.insert(identity);
     }
 
-    let required = requirement.required_approvals.max(1) as usize;
+    // Under a delegation the quorum is the DELEGATED one. Already checked to equal the offline
+    // payload's signed `required_approvals`, so this is the same number by a different route — stated
+    // explicitly so the substitution is visible where it takes effect.
+    let required = delegated_quorum
+        .unwrap_or(requirement.required_approvals)
+        .max(1) as usize;
     if verified.len() < required {
         let detail = if failures.is_empty() {
             String::new()
@@ -475,6 +759,206 @@ pub fn verify_approval_receipt_with_options(
         ));
     }
     Ok(())
+}
+
+/// Verify a DELEGATION (DIV §5a.6 step 1) — a statement, signed in advance by the ordinary quorum,
+/// naming local operators who may approve one pre-declared action while the gateway is unreachable.
+///
+/// Deliberately a SEPARATE function from [`verify_approval_receipt_with_options`], which refuses this
+/// payload type outright. A delegation authorizes nothing, and the only way to keep that true
+/// structurally is to make it impossible to hand one to the approval verifier and get an `Ok` back.
+/// What you get here is a [`VerifiedDelegation`] — an input to a later approval check, never a
+/// substitute for one.
+///
+/// `expected.approvers` MUST be the ORDINARY approver set, not the delegated operators: the point of
+/// the check is that the people entitled to approve this action are the ones who signed away that
+/// entitlement.
+pub fn verify_delegation(
+    receipt: &ApprovalReceipt,
+    expected: &Expected,
+    opts: &VerifyOptions,
+) -> Result<VerifiedDelegation, String> {
+    if receipt.canonical_payload.is_empty() {
+        return Err("missing canonicalPayload".to_string());
+    }
+    let probe: Value = serde_json::from_str(&receipt.canonical_payload)
+        .map_err(|_| "canonicalPayload is not valid JSON".to_string())?;
+    if probe.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
+        return Err("unsupported DIV payload version".to_string());
+    }
+    if probe.get("type").and_then(Value::as_str) != Some(DIV_DELEGATION_TYPE) {
+        return Err("payload is not a div-delegation".to_string());
+    }
+
+    let delegated_to: Vec<String> = probe
+        .get("delegatedTo")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    if delegated_to.is_empty() {
+        return Err("delegation is missing a valid delegatedTo set".to_string());
+    }
+    let delegated_quorum = probe
+        .get("delegatedQuorum")
+        .and_then(Value::as_i64)
+        .filter(|q| *q >= 1)
+        .ok_or("delegation is missing a valid delegatedQuorum")? as u32;
+
+    // Deduplicate before the size check: a delegatedTo listing one operator three times would otherwise
+    // appear to support a 3-of-3 quorum that one person could satisfy alone.
+    let mut distinct: Vec<String> = Vec::new();
+    for d in &delegated_to {
+        if !distinct.contains(d) {
+            distinct.push(d.clone());
+        }
+    }
+    if (distinct.len() as u32) < delegated_quorum {
+        return Err(format!(
+            "delegation names {} distinct operator(s) but delegates a quorum of {delegated_quorum} — it can never be satisfied",
+            distinct.len()
+        ));
+    }
+
+    let sealed_at = canonical_str_field(&receipt.canonical_payload, "sealedAt")
+        .filter(|s| !s.is_empty())
+        .ok_or("delegation is missing sealedAt")?;
+    let expires_at = canonical_str_field(&receipt.canonical_payload, "expiresAt")
+        .filter(|s| !s.is_empty())
+        .ok_or("delegation is missing expiresAt")?;
+    let sealed = parse_rfc3339_utc_secs(&sealed_at)
+        .ok_or("sealedAt is not a valid RFC3339 UTC timestamp")?;
+    let expiry = parse_rfc3339_utc_secs(&expires_at)
+        .ok_or("expiresAt is not a valid RFC3339 UTC timestamp")?;
+    let window_secs = expiry - sealed;
+    if window_secs < 0 {
+        return Err("delegation expires before it was sealed".to_string());
+    }
+    if window_secs > MAX_DELEGATION_WINDOW_HOURS * 3600 {
+        return Err(format!(
+            "delegation window is {:.1} hours, over the {MAX_DELEGATION_WINDOW_HOURS}-hour maximum",
+            window_secs as f64 / 3600.0
+        ));
+    }
+
+    let requester = receipt
+        .requester
+        .as_ref()
+        .ok_or("delegation missing requester")?;
+    let requirement: ApprovalRequirement = probe
+        .get("requirement")
+        .cloned()
+        .and_then(|v| serde_json::from_value(v).ok())
+        .ok_or("delegation payload is missing the signed approval requirement")?;
+    if expected.target.is_empty() {
+        return Err("expected.target is required — it must be YOUR target identifier, asserted independently of the delegation (DIV Target Isolation)".to_string());
+    }
+    let payload_nonce = canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
+
+    let recomputed = canonical_delegation_payload(
+        &expected.target,
+        &expected.action_type,
+        &receipt.action_description,
+        &expected.params,
+        requester,
+        &requirement,
+        &delegated_to,
+        delegated_quorum as i64,
+        &payload_nonce,
+        &sealed_at,
+        &expires_at,
+    );
+    if recomputed != receipt.canonical_payload {
+        return Err("target/params/actionType do not match what was delegated".to_string());
+    }
+
+    if !opts.allow_expired {
+        let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
+        let skew = opts.clock_skew_seconds.unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
+        if now > expiry + skew {
+            return Err(
+                "delegation has expired (set allow_expired for audit re-verification)".to_string(),
+            );
+        }
+    }
+    if receipt.sig_alg.as_deref() == Some("AUTO_APPROVED") {
+        return Err("a delegation cannot be auto-approved — delegating approval authority requires human signatures".to_string());
+    }
+
+    let witnesses = witnesses_of(receipt);
+    if witnesses.is_empty() {
+        return Err("delegation missing signature material".to_string());
+    }
+    let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut failures: Vec<String> = Vec::new();
+    for witness in &witnesses {
+        let candidates = match expected.approvers.candidates(&witness.signer_did) {
+            Ok(c) => c,
+            Err(reason) => {
+                failures.push(reason);
+                continue;
+            }
+        };
+        let mut matched: Option<String> = None;
+        let mut last = "signature does not verify against any trusted approver key".to_string();
+        for (key, identity) in candidates {
+            match verify_witness(witness, &key, receipt, opts) {
+                Ok(()) => {
+                    matched = Some(identity);
+                    break;
+                }
+                Err(why) => last = why,
+            }
+        }
+        let Some(identity) = matched else {
+            failures.push(last);
+            continue;
+        };
+        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+            failures.push(format!(
+                "signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential",
+                witness.signer_did
+            ));
+            continue;
+        }
+        if requirement.requester_cannot_approve && witness.signer_did == requester.did {
+            failures.push(format!(
+                "four-eyes: requester {} cannot delegate to themselves",
+                witness.signer_did
+            ));
+            continue;
+        }
+        verified.insert(identity);
+    }
+
+    let required = requirement.required_approvals.max(1) as usize;
+    if verified.len() < required {
+        let detail = if failures.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", failures.join("; "))
+        };
+        return Err(format!(
+            "delegation quorum not met: {} of {required} required approver signatures verified{detail}",
+            verified.len()
+        ));
+    }
+
+    Ok(VerifiedDelegation {
+        // The DEDUPLICATED set: this is what gets enforced against witness DIDs later, and a duplicate
+        // entry must not create the illusion of a larger eligible pool.
+        delegated_to: distinct,
+        delegated_quorum,
+        target: expected.target.clone(),
+        action_type: expected.action_type.clone(),
+        params: expected.params.clone(),
+        nonce: payload_nonce,
+        signers: verified.into_iter().collect(),
+        expires_at,
+    })
 }
 
 /// Normalize a receipt to a witness list: `signatures` if present, else the single-signature fields.
@@ -738,6 +1222,151 @@ mod tests {
             "expected to exercise the current-version vectors, ran {}",
             checked
         );
+    }
+
+    /// Byte-parity for the SEALED BREAK-GLASS builder against the shared golden vectors.
+    ///
+    /// The receipts test above exercises verification; this one pins the CANONICALIZATION, which is
+    /// where a port silently diverges. A Rust build that emits different bytes would produce tokens
+    /// no TypeScript relying party can verify — and the failure would look like tampering.
+    /// Shared helper: read one requirement out of a golden vector case.
+    fn vector_requirement(i: &Value) -> ApprovalRequirement {
+        ApprovalRequirement {
+            required_approvals: i["requirement"]["requiredApprovals"].as_u64().unwrap_or(1) as u32,
+            require_hardware_key: i["requirement"]["requireHardwareKey"]
+                .as_bool()
+                .unwrap_or(false),
+            allowed_aaguids: i["requirement"]["allowedAaguids"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            requester_cannot_approve: i["requirement"]["requesterCannotApprove"]
+                .as_bool()
+                .unwrap_or(false),
+        }
+    }
+
+    fn golden_vectors() -> Value {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/vectors/canonical-vectors.json"
+        );
+        let raw = std::fs::read_to_string(path).expect("read golden vectors");
+        serde_json::from_str(&raw).expect("parse golden vectors")
+    }
+
+    /// Pins the OFFLINE APPROVAL canonicalization against the shared vectors. This is where a port
+    /// silently diverges: a Rust build emitting different bytes could not verify an approval any
+    /// TypeScript relying party produced, and the failure would look like tampering rather than drift.
+    #[test]
+    fn offline_intent_canonical_parity() {
+        let doc = golden_vectors();
+        let cases = doc["offlineIntentPayloads"]
+            .as_array()
+            .expect("offlineIntentPayloads array");
+        assert!(!cases.is_empty(), "no offline-approval vectors present");
+
+        for case in cases {
+            let i = &case["input"];
+            let requester: RequesterIdentity =
+                serde_json::from_value(i["requester"].clone()).expect("requester");
+            let got = canonical_offline_intent_payload(
+                i["target"].as_str().unwrap_or_default(),
+                i["actionType"].as_str().unwrap_or_default(),
+                i["actionDescription"].as_str().unwrap_or_default(),
+                &i["params"],
+                &requester,
+                &vector_requirement(i),
+                i["nonce"].as_str().unwrap_or_default(),
+                i["challengedAt"].as_str().unwrap_or_default(),
+                i["expiresAt"].as_str().unwrap_or_default(),
+            );
+            assert_eq!(got, case["expected"].as_str().unwrap_or_default());
+            assert!(got.contains("\"type\":\"div-offline-intent\""));
+        }
+    }
+
+    /// Pins the DELEGATION canonicalization, including that `delegatedTo` is canonicalized as a SET.
+    /// The vector input is deliberately unsorted, so this is what proves the sort.
+    #[test]
+    fn delegation_canonical_parity() {
+        let doc = golden_vectors();
+        let cases = doc["delegationPayloads"]
+            .as_array()
+            .expect("delegationPayloads array");
+        assert!(!cases.is_empty(), "no delegation vectors present");
+
+        for case in cases {
+            let i = &case["input"];
+            let requester: RequesterIdentity =
+                serde_json::from_value(i["requester"].clone()).expect("requester");
+            let delegated_to: Vec<String> = i["delegatedTo"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let got = canonical_delegation_payload(
+                i["target"].as_str().unwrap_or_default(),
+                i["actionType"].as_str().unwrap_or_default(),
+                i["actionDescription"].as_str().unwrap_or_default(),
+                &i["params"],
+                &requester,
+                &vector_requirement(i),
+                &delegated_to,
+                i["delegatedQuorum"].as_i64().unwrap_or(0),
+                i["nonce"].as_str().unwrap_or_default(),
+                i["sealedAt"].as_str().unwrap_or_default(),
+                i["expiresAt"].as_str().unwrap_or_default(),
+            );
+            assert_eq!(got, case["expected"].as_str().unwrap_or_default());
+            assert!(got.contains("\"type\":\"div-delegation\""));
+            assert!(got.contains(
+                "\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-b\",\"did:intyga:sre-c\"]"
+            ));
+        }
+    }
+
+    /// The property that matters more than parity: the payload kinds must never produce the same bytes
+    /// for the same action. If they could, an out-of-band approval would be indistinguishable from a
+    /// gateway-mediated one, and an ordinary approval could be replayed as an offline one.
+    #[test]
+    fn payload_kinds_never_collide() {
+        let doc = golden_vectors();
+        for case in doc["offlineIntentPayloads"].as_array().unwrap() {
+            let i = &case["input"];
+            let requester: RequesterIdentity =
+                serde_json::from_value(i["requester"].clone()).expect("requester");
+            let req = vector_requirement(i);
+            let offline = canonical_offline_intent_payload(
+                i["target"].as_str().unwrap_or_default(),
+                i["actionType"].as_str().unwrap_or_default(),
+                i["actionDescription"].as_str().unwrap_or_default(),
+                &i["params"],
+                &requester,
+                &req,
+                i["nonce"].as_str().unwrap_or_default(),
+                i["challengedAt"].as_str().unwrap_or_default(),
+                i["expiresAt"].as_str().unwrap_or_default(),
+            );
+            let intent = canonical_intent_payload(
+                i["target"].as_str().unwrap_or_default(),
+                i["actionType"].as_str().unwrap_or_default(),
+                i["actionDescription"].as_str().unwrap_or_default(),
+                &i["params"],
+                &requester,
+                &req,
+                i["nonce"].as_str().unwrap_or_default(),
+                i["expiresAt"].as_str().unwrap_or_default(),
+            );
+            assert_ne!(offline, intent, "offline and intent payloads must differ");
+        }
     }
 
     fn canonical_version(canonical: &str) -> i64 {
