@@ -37,6 +37,15 @@ pub enum ApprovalStatus {
 /// Structured, WYSIWYS-bound details of an approval request.
 #[derive(Debug, Clone, Default)]
 pub struct AuthorizeOptions {
+    /// The relying party / execution environment this approval is bound to (DIV §3 Invariant 5,
+    /// Target Isolation). REQUIRED, and asserted from YOUR own identity.
+    ///
+    /// Leaving it `None` is not neutral: the gateway defaults a missing target to the literal
+    /// `"global"`, so the signed intent binds no environment and an approval minted for this
+    /// service verifies at every other relying party that also asserts `"global"` — the exact
+    /// cross-service replay Target Isolation exists to prevent. Refused client-side rather than
+    /// quietly defaulted, because `intyga_verify::Expected` has no default for it either.
+    pub target: Option<String>,
     /// Action identifier, e.g. "wire_transfer". Bound into the signed payload.
     pub action_type: Option<String>,
     /// The exact structured variables that will execute — displayed in the wallet AND signed.
@@ -195,7 +204,13 @@ impl<T: Transport> Client<T> {
         action_description: &str,
         opts: &AuthorizeOptions,
     ) -> Result<AuthorizeResponse, String> {
+        let target = opts.target.as_deref().map(str::trim).filter(|t| !t.is_empty()).ok_or_else(|| {
+            "intyga: AuthorizeOptions.target is required (DIV Target Isolation): name the relying \
+             party / execution environment this approval is bound to"
+                .to_string()
+        })?;
         let mut body = json!({
+            "target": target,
             "actionDescription": action_description,
             "actionType": opts.action_type,
             "params": opts.params.clone().unwrap_or_else(|| json!({})),
@@ -209,14 +224,26 @@ impl<T: Transport> Client<T> {
 
     /// Execution-time re-binding: after APPROVED, call this immediately before running the action so the
     /// gateway confirms the approved signature matches the exact instruction and marks it single-use.
+    ///
+    /// `target` is REQUIRED by the gateway's `authorizationConsume` schema. Omitting it was a 400 on
+    /// every call, which made single-use redemption unreachable from this crate entirely: the
+    /// challenge stayed APPROVED rather than CONSUMED, and remained replayable by any holder of the
+    /// same token until it expired naturally.
     pub fn consume(
         &mut self,
         nonce: &str,
+        target: &str,
         action_type: &str,
         params: Option<Value>,
     ) -> Result<ConsumeResult, String> {
+        if target.trim().is_empty() {
+            return Err(
+                "intyga: consume requires the same target the approval was bound to".to_string(),
+            );
+        }
         let body = json!({
             "nonce": nonce,
+            "target": target,
             "actionType": action_type,
             "params": params.unwrap_or_else(|| json!({})),
         });
@@ -249,11 +276,13 @@ impl<T: Transport> Client<T> {
             opts.interval
         };
 
+        // Clone the caller's options and override only the timeout. Rebuilding this struct
+        // field-by-field silently drops anything added to AuthorizeOptions later — which is how
+        // `target` would have gone missing here even after being made required.
         let authorize = AuthorizeOptions {
-            action_type: opts.authorize.action_type.clone(),
-            params: opts.authorize.params.clone(),
             // Ceil to whole seconds so the challenge TTL covers the full local wait.
             timeout_seconds: Some((timeout.as_secs_f64().ceil()) as u64),
+            ..opts.authorize.clone()
         };
         let auth_res = self.authorize(action_description, &authorize)?;
         let nonce = auth_res.nonce;
@@ -515,6 +544,7 @@ mod tests {
             .require_approval(
                 "Wire $5,000 to Acme Corp",
                 &fast_opts(AuthorizeOptions {
+                    target: Some("prod-payments".into()),
                     action_type: Some("wire_transfer".into()),
                     params: Some(json!({"to":"Acme Corp","amount":5000})),
                     ..Default::default()
@@ -548,7 +578,13 @@ mod tests {
             transport,
         );
         let res = client
-            .require_approval("delete prod", &fast_opts(AuthorizeOptions::default()))
+            .require_approval(
+                "delete prod",
+                &fast_opts(AuthorizeOptions {
+                    target: Some("prod-db".into()),
+                    ..Default::default()
+                }),
+            )
             .unwrap();
         assert_eq!(res.status, ApprovalStatus::Denied);
     }
@@ -587,9 +623,51 @@ mod tests {
             transport,
         );
         let out = client
-            .consume("n_1", "wire_transfer", Some(json!({"amount":5000})))
+            .consume(
+                "n_1",
+                "prod-payments",
+                "wire_transfer",
+                Some(json!({"amount":5000})),
+            )
             .unwrap();
         assert!(out.ok);
+    }
+
+    // DIV §3 Invariant 5: an approval that names no target binds no execution environment, and the
+    // gateway silently defaults a missing one to "global" — so refusing here is the only place the
+    // caller ever finds out. `consume` without it was simply a 400, making redemption unreachable.
+    #[test]
+    fn target_is_required() {
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                token: Some("t".into()),
+                ..Default::default()
+            },
+            MockTransport::new(),
+        );
+
+        let err = client
+            .authorize(
+                "wire",
+                &AuthorizeOptions {
+                    action_type: Some("wire".into()),
+                    ..Default::default()
+                },
+            )
+            .expect_err(
+                "authorize accepted an empty target; the gateway would have signed target=global",
+            );
+        assert!(
+            err.contains("target is required"),
+            "unexpected error: {}",
+            err
+        );
+
+        let err = client.consume("n_1", "   ", "wire", None).expect_err(
+            "consume accepted a blank target; the gateway would have rejected it with a 400",
+        );
+        assert!(err.contains("target"), "unexpected error: {}", err);
     }
 
     #[test]

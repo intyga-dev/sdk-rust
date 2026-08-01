@@ -28,11 +28,16 @@ let mut client = Client::new(ClientOptions {
     ..Default::default()
 });
 
-// Blocks until the human approves with their passkey / security key (or times out):
+let params = json!({ "cluster": "prod-db-1" });
+
+// Blocks until the human approves with their passkey / security key (or times out).
+// `target` names THIS relying party. It is required: it is what stops an approval minted here from
+// being replayed at a different service (DIV §3 Invariant 5, Target Isolation).
 let r = client.require_approval("Delete production database", &RequireApprovalOptions {
     authorize: AuthorizeOptions {
+        target: Some("prod-db-cluster-01".into()),
         action_type: Some("wipe_production".into()),
-        params: Some(json!({ "target": "prod-db-1" })),
+        params: Some(params.clone()),
         ..Default::default()
     },
     ..Default::default()
@@ -41,13 +46,30 @@ if r.status != ApprovalStatus::Approved {
     return Err("not authorized".into());
 }
 
-// Optional hard binding before executing — no Intyga secret involved:
+// Re-verify locally before executing. This is not optional under DIV §5: the relying party checks
+// the signature itself, against a key IT resolved. `approvers` is required for exactly that reason —
+// a receipt checked against its own embedded key proves only that the receipt is self-consistent.
+let receipt = r.receipt.as_ref().ok_or("approved with no receipt")?;
 let expected = Expected {
-    nonce: r.nonce.clone().unwrap(),
+    target: "prod-db-cluster-01".into(),
+    nonce: r.nonce.clone().ok_or("approved with no nonce")?,
     action_type: "wipe_production".into(),
-    params: json!({ "target": "prod-db-1" }),
+    params: params.clone(),
+    approvers: trusted_approver_anchor(),
 };
-verify_approval_receipt_with_options(&r.receipt.unwrap(), &expected, &VerifyOptions::default())?;
+verify_approval_receipt_with_options(receipt, &expected, &VerifyOptions::default())?;
+
+// Redeem it exactly once, immediately before the action runs. Same target, same params: this is
+// what makes the approval single-use and re-binds it to what is about to execute.
+let c = client.consume(
+    r.nonce.as_deref().unwrap(),
+    "prod-db-cluster-01",
+    "wipe_production",
+    Some(params),
+)?;
+if !c.ok {
+    return Err("could not consume the approval".into());
+}
 ```
 
 ## Bring your own HTTP client

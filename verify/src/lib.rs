@@ -33,6 +33,15 @@ pub const MAX_OFFLINE_WINDOW_MINUTES: i64 = 60;
 /// Hard cap on a delegation's window (DIV §5a.6). Hours, not weeks: a delegation cannot be recalled
 /// from a relying party that is offline.
 pub const MAX_DELEGATION_WINDOW_HOURS: i64 = 72;
+/// Ceiling on the witness list this verifier will process. A DIV quorum is single digits — this is
+/// a denial-of-service bound, not a policy limit: the witness list is attacker-supplied, every entry
+/// costs an ECDSA verification per candidate key, and verification runs in the relying party's own
+/// process immediately before an irreversible action. The TS reference measured a 20,000-witness
+/// receipt at 3.6s of blocked verification and a 1.16 MB error string. Matches @intyga/verify.
+pub const MAX_WITNESSES: usize = 64;
+/// How many per-witness failure reasons are folded into the returned reason string; the rest are
+/// elided as "+N more". Folding every reason is what produced the megabyte error above.
+const MAX_REPORTED_FAILURES: usize = 8;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RequesterAttestation {
@@ -184,7 +193,9 @@ impl ApproverTrustAnchor {
         }
         if let Some(named) = restrict_to {
             if !named.iter().any(|d| d == signer_did) {
-                return Err(format!("signer {signer_did} is not named in the delegation"));
+                return Err(format!(
+                    "signer {signer_did} is not named in the delegation"
+                ));
             }
         }
         match self {
@@ -276,33 +287,85 @@ pub struct VerifiedDelegation {
     pub expires_at: String,
 }
 
+/// The portability bound the golden vectors pin: integers are exact below 1e16, and outside it
+/// every implementation switches to exponent notation at a different threshold.
+const PORTABLE_LIMIT: u64 = 10_000_000_000_000_000; // 1e16
+
 /// Recursively stringify JSON values with UTF-16 sorted keys to match JS/Python byte-for-byte.
-pub fn stable_stringify(value: &Value) -> String {
+///
+/// Returns `Err` for any number that cannot be canonicalized IDENTICALLY in every language this
+/// contract spans (`isPortableNumber` in @intyga/mcp-schemas, `NonCanonicalValue` in @intyga/verify):
+/// negative zero (serde_json prints "-0.0" where JS prints "0"), any nonzero |x| >= 1e16, and any
+/// nonzero non-integer |x| < 1e-4 (Python and V8 switch to exponent notation at different
+/// thresholds). Refusing here rather than emitting keeps this port from signing bytes the other
+/// verifiers can never re-derive — a failure that would read as tampering, not as drift.
+///
+/// NaN/Infinity need no guard: serde_json's `Number` cannot hold them (`Number::from_f64` refuses
+/// non-finite values, and `json!` maps them to `null`).
+pub fn stable_stringify(value: &Value) -> Result<String, String> {
     match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => {
-            if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }
-        }
+        Value::Null => Ok("null".to_string()),
+        Value::Bool(b) => Ok(if *b { "true" } else { "false" }.to_string()),
         Value::Number(n) => {
             // serde_json's Display is NOT the ES6 Number::toString RFC 8785 §3.2.2.3 mandates: it
-            // prints -0.0 and 0.0 with a decimal point, where JS emits "0". Producers refuse to sign
-            // numbers outside the portable range (see isPortableNumber in @intyga/mcp-schemas), so
-            // normalising zero is all that is needed for the values that can legitimately appear.
+            // prints a decimal point for whole-valued floats, where JS emits none.
+            //
+            // Normalising only zero was not enough, and the reasoning that it was ("producers refuse
+            // to sign numbers outside the portable range") does not apply: isPortableNumber ACCEPTS
+            // any integer under 1e16, and JS cannot tell 3 from 3.0, so the signed bytes always say
+            // "3". A relying party building expected params from its own runtime — json!({"amount":
+            // 100.0}), or any struct with an f64 field — emitted "100.0" here and got a false
+            // "params do not match" on a perfectly valid receipt. Tests missed it because values
+            // parsed from JSON *text* stay integer-typed in serde_json.
+            //
+            // The integer branches enforce PORTABLE_LIMIT too: serde_json would print an i64 1e16
+            // exactly, but the TS reference REFUSES to sign it, so emitting it here would produce
+            // bytes no TS relying party can ever re-derive.
+            if let Some(i) = n.as_i64() {
+                if i.unsigned_abs() >= PORTABLE_LIMIT {
+                    return Err(format!("{i} is outside the portable range (|x| < 1e16)"));
+                }
+                return Ok(i.to_string());
+            }
+            if let Some(u) = n.as_u64() {
+                if u >= PORTABLE_LIMIT {
+                    return Err(format!("{u} is outside the portable range (|x| < 1e16)"));
+                }
+                return Ok(u.to_string());
+            }
             if let Some(f) = n.as_f64() {
                 if f == 0.0 {
-                    return "0".to_string();
+                    // Previously folded silently to "0". Refused now: the TS producer refuses to
+                    // sign -0, so a Rust RP accepting it would diverge on the very value whose
+                    // serialization ("-0.0" here, "0" in JS) motivated the portability rule.
+                    if f.is_sign_negative() {
+                        return Err("-0 does not serialize portably across verifiers".to_string());
+                    }
+                    return Ok("0".to_string());
+                }
+                if f.abs() >= 1e16 {
+                    return Err(format!("{f} is outside the portable range (|x| < 1e16)"));
+                }
+                // Integers are exact below 1e16 (bound enforced just above); whole-valued floats
+                // print without the decimal point JS omits.
+                if f.fract() == 0.0 {
+                    return Ok(format!("{}", f as i64));
+                }
+                if f.abs() < 1e-4 {
+                    return Err(format!(
+                        "{f} is outside the portable float range (1e-4 ≤ |x| < 1e16)"
+                    ));
                 }
             }
-            n.to_string()
+            Ok(n.to_string())
         }
-        Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "null".to_string()),
+        Value::String(s) => Ok(serde_json::to_string(s).unwrap_or_else(|_| "null".to_string())),
         Value::Array(arr) => {
-            let elems: Vec<String> = arr.iter().map(stable_stringify).collect();
-            format!("[{}]", elems.join(","))
+            let mut elems: Vec<String> = Vec::with_capacity(arr.len());
+            for v in arr {
+                elems.push(stable_stringify(v)?);
+            }
+            Ok(format!("[{}]", elems.join(",")))
         }
         Value::Object(obj) => {
             let mut keys: Vec<&String> = obj.keys().collect();
@@ -311,15 +374,13 @@ pub fn stable_stringify(value: &Value) -> String {
                 let u2: Vec<u16> = b.encode_utf16().collect();
                 u1.cmp(&u2)
             });
-            let parts: Vec<String> = keys
-                .into_iter()
-                .map(|k| {
-                    let k_str = serde_json::to_string(k).unwrap();
-                    let v_str = stable_stringify(&obj[k]);
-                    format!("{}:{}", k_str, v_str)
-                })
-                .collect();
-            format!("{{{}}}", parts.join(","))
+            let mut parts: Vec<String> = Vec::with_capacity(keys.len());
+            for k in keys {
+                let k_str = serde_json::to_string(k).unwrap();
+                let v_str = stable_stringify(&obj[k])?;
+                parts.push(format!("{}:{}", k_str, v_str));
+            }
+            Ok(format!("{{{}}}", parts.join(",")))
         }
     }
 }
@@ -327,6 +388,10 @@ pub fn stable_stringify(value: &Value) -> String {
 /// Build a byte-identical DIV Intent Payload (docs/DIV.md v1) matching TypeScript, Go and Python.
 /// Builds the full object and serializes it via [`stable_stringify`] (strict RFC 8785 JCS — every
 /// key sorted). Do NOT hand-template key order; the sort is the contract.
+///
+/// `Err` means the params contain a non-portable number (see [`stable_stringify`]) — the payload
+/// could never verify in the other language ports, so it is refused rather than built.
+#[allow(clippy::too_many_arguments)]
 pub fn canonical_intent_payload(
     target: &str,
     action_type: &str,
@@ -336,7 +401,7 @@ pub fn canonical_intent_payload(
     requirement: &ApprovalRequirement,
     nonce: &str,
     expires_at: &str,
-) -> String {
+) -> Result<String, String> {
     let (req, rq) = canonical_common(requester, requirement);
     let obj = serde_json::json!({
         "v": DIV_VERSION,
@@ -357,7 +422,13 @@ pub fn canonical_intent_payload(
 ///
 /// One definition rather than three copies: these bytes are the contract, and a field added to one
 /// builder but not the others is exactly the drift the golden vectors exist to catch.
-fn canonical_common(requester: &RequesterIdentity, requirement: &ApprovalRequirement) -> (Value, Value) {
+///
+/// Infallible on purpose: it only BUILDS `Value`s (strings, bools, a u32 — none can be
+/// non-portable); the fallible serialization happens in the callers' [`stable_stringify`] pass.
+fn canonical_common(
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+) -> (Value, Value) {
     let attestation = match &requester.attestation {
         None => Value::Null,
         Some(a) => serde_json::json!({
@@ -400,7 +471,7 @@ pub fn canonical_offline_intent_payload(
     nonce: &str,
     challenged_at: &str,
     expires_at: &str,
-) -> String {
+) -> Result<String, String> {
     let (req, rq) = canonical_common(requester, requirement);
     stable_stringify(&serde_json::json!({
         "v": DIV_VERSION,
@@ -436,7 +507,7 @@ pub fn canonical_delegation_payload(
     nonce: &str,
     sealed_at: &str,
     expires_at: &str,
-) -> String {
+) -> Result<String, String> {
     let (req, rq) = canonical_common(requester, requirement);
     let mut delegates = delegated_to.to_vec();
     delegates.sort();
@@ -466,13 +537,28 @@ fn canonical_str_field(canonical: &str, key: &str) -> Option<String> {
 
 /// Parse an RFC3339 UTC timestamp (`YYYY-MM-DDTHH:MM:SS[.fff]Z`) to unix seconds. UTC only (DIV
 /// mandates UTC `expiresAt`); returns None on any other shape. Zero external dependencies.
+/// Parse an RFC 3339 timestamp to a Unix second count.
+///
+/// Accepts a `Z`/`z` suffix OR a numeric `±HH:MM` offset, and normalizes the latter to UTC. This
+/// used to require the string to END in `Z`, which made `2036-01-01T00:00:00+00:00` — perfectly
+/// valid RFC 3339 denoting UTC, and accepted by both `Date.parse` in the TS reference and
+/// `time.RFC3339` in the Go port — return None here alone.
+///
+/// That divergence was not cosmetic: the caller treated None as "skip the check", so a proof every
+/// other port would refuse for its window sailed through Rust. Both halves are fixed — this parser
+/// now agrees with its siblings, and the caller now fails closed on None rather than skipping.
 fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
     let b = s.as_bytes();
-    // Minimum: "YYYY-MM-DDTHH:MM:SSZ" = 20 chars, must end in Z.
-    if b.len() < 20 || *b.last()? != b'Z' {
+    // Minimum: "YYYY-MM-DDTHH:MM:SSZ" = 20 chars.
+    if b.len() < 20 {
         return None;
     }
-    if b[4] != b'-' || b[7] != b'-' || (b[10] != b'T' && b[10] != b't') || b[13] != b':' || b[16] != b':' {
+    if b[4] != b'-'
+        || b[7] != b'-'
+        || (b[10] != b'T' && b[10] != b't')
+        || b[13] != b':'
+        || b[16] != b':'
+    {
         return None;
     }
     let year: i64 = s.get(0..4)?.parse().ok()?;
@@ -484,6 +570,39 @@ fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
     if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || min > 59 || sec > 60 {
         return None;
     }
+
+    // Everything after the seconds: an optional fractional part (floored, per the note below), then
+    // the zone designator — `Z`/`z`, or a numeric offset which is subtracted to reach UTC.
+    let mut rest = s.get(19..)?;
+    if rest.starts_with('.') || rest.starts_with(',') {
+        // `.` and `,` are both legal decimal signs in ISO 8601; RFC 3339 uses `.`. The separator is
+        // one ASCII byte, so slicing at 1 is always a char boundary.
+        let digits = rest[1..].chars().take_while(|c| c.is_ascii_digit()).count();
+        if digits == 0 {
+            return None;
+        }
+        rest = rest.get(1 + digits..)?;
+    }
+    let offset_secs: i64 = if rest == "Z" || rest == "z" {
+        0
+    } else {
+        let rb = rest.as_bytes();
+        if rb.len() != 6 || (rb[0] != b'+' && rb[0] != b'-') || rb[3] != b':' {
+            return None;
+        }
+        let off_hour: i64 = rest.get(1..3)?.parse().ok()?;
+        let off_min: i64 = rest.get(4..6)?.parse().ok()?;
+        if off_hour > 23 || off_min > 59 {
+            return None;
+        }
+        let magnitude = off_hour * 3600 + off_min * 60;
+        if rb[0] == b'-' {
+            -magnitude
+        } else {
+            magnitude
+        }
+    };
+
     // days_from_civil (Howard Hinnant), then seconds. Fractional seconds are floored (ignored).
     let y = year - if month <= 2 { 1 } else { 0 };
     let era = (if y >= 0 { y } else { y - 399 }) / 400;
@@ -492,7 +611,7 @@ fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
     let doy = (153 * mp + 2) / 5 + day - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146097 + doe - 719468;
-    Some(days * 86400 + hour * 3600 + min * 60 + sec)
+    Some(days * 86400 + hour * 3600 + min * 60 + sec - offset_secs)
 }
 
 fn now_unix_secs() -> i64 {
@@ -533,7 +652,10 @@ pub fn verify_approval_receipt_with_options(
     if probe.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
         return Err("unsupported DIV payload version".to_string());
     }
-    let payload_type = probe.get("type").and_then(Value::as_str).unwrap_or_default();
+    let payload_type = probe
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     // A DELEGATION authorizes nothing (DIV §5a.5). Refused here unconditionally — there is deliberately
     // NO option that would let one through, because a delegation that could authorize its own action
     // would be exactly the pre-signed bearer capability the design exists to avoid.
@@ -550,26 +672,19 @@ pub fn verify_approval_receipt_with_options(
     // A delegation only ever substitutes the approver set for an OFFLINE proof. Accepting it against an
     // ordinary gateway-mediated receipt would silently replace the quorum the gateway enforced.
     if opts.delegation.is_some() && !offline {
-        return Err("a delegation can only substitute the approver set for an offline approval".to_string());
+        return Err(
+            "a delegation can only substitute the approver set for an offline approval".to_string(),
+        );
     }
-    let payload_nonce = canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
+    let payload_nonce =
+        canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
     if payload_nonce != expected.nonce {
         return Err("receipt is for a different challenge".to_string());
     }
 
-    if let Some(alg) = &receipt.sig_alg {
-        if alg == "AUTO_APPROVED" {
-            // An offline approval with no human signature is a contradiction: the entire premise is that
-            // humans signed out of band, so `allow_auto_approved` must not rescue it.
-            if offline {
-                return Err("an offline approval cannot be auto-approved — there is no human signature to verify".to_string());
-            }
-            if !opts.allow_auto_approved {
-                return Err("AUTO_APPROVED receipts are refused by default".to_string());
-            }
-            return Ok(());
-        }
-    }
+    // NOTE: the AUTO_APPROVED decision deliberately does NOT live here. Accepting it before the
+    // canonical payload has been recomputed would attest a receipt on the strength of a matching
+    // nonce alone — see the block after the expiry check below.
 
     let requester = receipt
         .requester
@@ -582,11 +697,12 @@ pub fn verify_approval_receipt_with_options(
 
     // The requirement is part of the SIGNED bytes, so reading it back from the payload is not
     // circular: a forged value changes the string and fails the byte comparison below.
-    let requirement: ApprovalRequirement = serde_json::from_str::<Value>(&receipt.canonical_payload)
-        .ok()
-        .and_then(|v| v.get("requirement").cloned())
-        .and_then(|v| serde_json::from_value(v).ok())
-        .ok_or("receipt payload is missing the signed approval requirement")?;
+    let requirement: ApprovalRequirement =
+        serde_json::from_str::<Value>(&receipt.canonical_payload)
+            .ok()
+            .and_then(|v| v.get("requirement").cloned())
+            .and_then(|v| serde_json::from_value(v).ok())
+            .ok_or("receipt payload is missing the signed approval requirement")?;
 
     // Offline proofs carry `challengedAt` so the validity WINDOW can be bounded here, not merely at mint.
     let mut challenged_at = String::new();
@@ -596,17 +712,32 @@ pub fn verify_approval_receipt_with_options(
             .ok_or("offline proof is missing challengedAt")?;
         let challenged = parse_rfc3339_utc_secs(&challenged_at)
             .ok_or("challengedAt is not a valid RFC3339 UTC timestamp")?;
-        if let Some(expiry) = parse_rfc3339_utc_secs(&expires_at) {
-            let window_secs = expiry - challenged;
-            if window_secs < 0 {
-                return Err("offline proof expires before it was challenged".to_string());
-            }
-            if window_secs > MAX_OFFLINE_WINDOW_MINUTES * 60 {
-                return Err(format!(
-                    "offline window is {:.1} minutes, over the {MAX_OFFLINE_WINDOW_MINUTES}-minute maximum",
-                    window_secs as f64 / 60.0
-                ));
-            }
+        // An unparseable `expiresAt` must be refused HERE rather than skipping the window cap and
+        // relying on the expiry check further down — that check is disabled by `allow_expired`, so
+        // the `allow_offline + allow_expired` combination (the documented forensic re-verification
+        // mode, and the only mode under which an offline proof is examined at all) left the cap
+        // unenforced on a proof whose window could not be computed at all.
+        //
+        // `expiresAt` is inside the signed bytes, but an offline proof is minted by whoever
+        // constructs it and the verifier reconstructs the payload from the receipt's OWN expiresAt,
+        // so any string round-trips. DIV §5a.3 makes the window the entire revocation story for an
+        // offline proof — an offline relying party has no channel to recall one — so an unbounded
+        // window turns a 60-minute incident credential into a permanent bearer capability.
+        //
+        // This port was the worst of the three that had the bug: its parser also rejected a valid
+        // `+00:00` offset that the TS and Go ports accept, so a proof they would refuse for its
+        // window passed here. See `parse_rfc3339_utc_secs`, now fixed to agree with them.
+        let expiry = parse_rfc3339_utc_secs(&expires_at)
+            .ok_or("expiresAt is not a valid RFC3339 timestamp")?;
+        let window_secs = expiry - challenged;
+        if window_secs < 0 {
+            return Err("offline proof expires before it was challenged".to_string());
+        }
+        if window_secs > MAX_OFFLINE_WINDOW_MINUTES * 60 {
+            return Err(format!(
+                "offline window is {:.1} minutes, over the {MAX_OFFLINE_WINDOW_MINUTES}-minute maximum",
+                window_secs as f64 / 60.0
+            ));
         }
         // A hardware-key policy CANNOT be satisfied offline (DIV §5a.3 step 4). WebAuthn needs a secure
         // context and an RP ID an offline signing surface will not match, so an offline witness is
@@ -628,7 +759,15 @@ pub fn verify_approval_receipt_with_options(
         if d.action_type != expected.action_type {
             return Err("the delegation was issued for a different actionType".to_string());
         }
-        if stable_stringify(&d.params) != stable_stringify(&expected.params) {
+        // A canonicalization failure here is fail-closed but deliberately NOT the tampering-shaped
+        // "issued for different params": the params were never compared at all.
+        let delegation_params = stable_stringify(&d.params).map_err(|why| {
+            format!("params contain a non-portable number and cannot be canonicalized: {why}")
+        })?;
+        let expected_params = stable_stringify(&expected.params).map_err(|why| {
+            format!("params contain a non-portable number and cannot be canonicalized: {why}")
+        })?;
+        if delegation_params != expected_params {
             return Err("the delegation was issued for different params".to_string());
         }
         // The offline payload's signed quorum must equal the delegated one, so the operators signed the
@@ -666,7 +805,13 @@ pub fn verify_approval_receipt_with_options(
             &payload_nonce,
             &expires_at,
         )
-    };
+    }
+    // Fail closed, but with a reason DISTINCT from the "do not match" one below: that one is
+    // tampering-shaped, while this one means the relying party's own expected params hold a number
+    // no port can canonicalize identically — nothing was compared, and there is no attacker to hunt.
+    .map_err(|why| {
+        format!("params contain a non-portable number and cannot be canonicalized: {why}")
+    })?;
 
     if recomputed != receipt.canonical_payload {
         return Err("target/params/actionType do not match what was approved".to_string());
@@ -677,15 +822,48 @@ pub fn verify_approval_receipt_with_options(
         let expiry = parse_rfc3339_utc_secs(&expires_at)
             .ok_or("expiresAt is not a valid RFC3339 UTC timestamp")?;
         let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
-        let skew = opts.clock_skew_seconds.unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
+        let skew = opts
+            .clock_skew_seconds
+            .unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
         if now > expiry + skew {
-            return Err("proof has expired (set allow_expired for audit re-verification)".to_string());
+            return Err(
+                "proof has expired (set allow_expired for audit re-verification)".to_string(),
+            );
+        }
+    }
+
+    // A policy AUTO_APPROVED receipt carries NO human signature, so there is nothing to verify
+    // cryptographically and a relying party must opt in. Opting in waives the SIGNATURE requirement —
+    // it does not waive DIV §5 steps 8 and 9. This check therefore sits AFTER the canonical payload
+    // comparison and the expiry check, matching the TypeScript reference.
+    //
+    // It used to sit immediately after the nonce comparison. An agent holding a nonce could then get
+    // any trivial action auto-approved under it and present that receipt for a destructive call: the
+    // target, actionType and params were never examined, and a years-expired approval passed too.
+    if let Some(alg) = &receipt.sig_alg {
+        if alg == "AUTO_APPROVED" {
+            // An offline approval with no human signature is a contradiction: the entire premise is that
+            // humans signed out of band, so `allow_auto_approved` must not rescue it.
+            if offline {
+                return Err("an offline approval cannot be auto-approved — there is no human signature to verify".to_string());
+            }
+            if !opts.allow_auto_approved {
+                return Err("AUTO_APPROVED receipts are refused by default".to_string());
+            }
+            return Ok(());
         }
     }
 
     let witnesses = witnesses_of(receipt);
     if witnesses.is_empty() {
         return Err("missing signature or public key".to_string());
+    }
+    // DoS bound, not a policy limit — see MAX_WITNESSES.
+    if witnesses.len() > MAX_WITNESSES {
+        return Err(format!(
+            "receipt carries {} witnesses, above the {MAX_WITNESSES} this verifier will process",
+            witnesses.len()
+        ));
     }
 
     // Count DISTINCT approvers whose signature verifies under a key we independently trust. Distinct
@@ -746,19 +924,36 @@ pub fn verify_approval_receipt_with_options(
         .unwrap_or(requirement.required_approvals)
         .max(1) as usize;
     if verified.len() < required {
-        let detail = if failures.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", failures.join("; "))
-        };
         return Err(format!(
             "quorum not met: {} of {} required approver signatures verified{}",
             verified.len(),
             required,
-            detail
+            fold_failures(&failures)
         ));
     }
     Ok(())
+}
+
+/// Fold per-witness failure reasons into a bounded parenthetical detail string.
+///
+/// Capped at [`MAX_REPORTED_FAILURES`] with a "; +N more" suffix: joining every reason is what
+/// turned a 20,000-witness receipt into 1.16 MB of error text in the TS reference, and the leading
+/// reasons are the diagnostic ones anyway.
+fn fold_failures(failures: &[String]) -> String {
+    if failures.is_empty() {
+        return String::new();
+    }
+    let shown: Vec<&str> = failures
+        .iter()
+        .take(MAX_REPORTED_FAILURES)
+        .map(String::as_str)
+        .collect();
+    let elided = failures.len().saturating_sub(MAX_REPORTED_FAILURES);
+    if elided > 0 {
+        format!(" ({}; +{elided} more)", shown.join("; "))
+    } else {
+        format!(" ({})", shown.join("; "))
+    }
 }
 
 /// Verify a DELEGATION (DIV §5a.6 step 1) — a statement, signed in advance by the ordinary quorum,
@@ -856,7 +1051,8 @@ pub fn verify_delegation(
     if expected.target.is_empty() {
         return Err("expected.target is required — it must be YOUR target identifier, asserted independently of the delegation (DIV Target Isolation)".to_string());
     }
-    let payload_nonce = canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
+    let payload_nonce =
+        canonical_str_field(&receipt.canonical_payload, "nonce").unwrap_or_default();
 
     let recomputed = canonical_delegation_payload(
         &expected.target,
@@ -870,14 +1066,21 @@ pub fn verify_delegation(
         &payload_nonce,
         &sealed_at,
         &expires_at,
-    );
+    )
+    // Same split as the approval path: this is a canonicalization refusal on the caller's own
+    // params, deliberately distinct from the tampering-shaped "do not match" reason below.
+    .map_err(|why| {
+        format!("params contain a non-portable number and cannot be canonicalized: {why}")
+    })?;
     if recomputed != receipt.canonical_payload {
         return Err("target/params/actionType do not match what was delegated".to_string());
     }
 
     if !opts.allow_expired {
         let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
-        let skew = opts.clock_skew_seconds.unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
+        let skew = opts
+            .clock_skew_seconds
+            .unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
         if now > expiry + skew {
             return Err(
                 "delegation has expired (set allow_expired for audit re-verification)".to_string(),
@@ -891,6 +1094,14 @@ pub fn verify_delegation(
     let witnesses = witnesses_of(receipt);
     if witnesses.is_empty() {
         return Err("delegation missing signature material".to_string());
+    }
+    // Same DoS bound as the approval path: the witness list is attacker-supplied and a delegation
+    // is signed by a single-digit quorum.
+    if witnesses.len() > MAX_WITNESSES {
+        return Err(format!(
+            "delegation carries {} witnesses, above the {MAX_WITNESSES} this verifier will process",
+            witnesses.len()
+        ));
     }
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut failures: Vec<String> = Vec::new();
@@ -936,11 +1147,7 @@ pub fn verify_delegation(
 
     let required = requirement.required_approvals.max(1) as usize;
     if verified.len() < required {
-        let detail = if failures.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", failures.join("; "))
-        };
+        let detail = fold_failures(&failures);
         return Err(format!(
             "delegation quorum not met: {} of {required} required approver signatures verified{detail}",
             verified.len()
@@ -1049,6 +1256,9 @@ mod tests {
         SigningKey::from_slice(&[0x11u8; 32]).expect("valid P-256 scalar")
     }
 
+    // Local fixture for unit-behavior tests (signature handling, tampering, expiry, quorum). The
+    // authoritative CANONICALIZATION parity pin is the shared vectors file
+    // (packages/mcp-schemas/vectors/canonical-vectors.json) via test_shared_intent_payload_vectors.
     fn signed_receipt() -> (ApprovalReceipt, Expected) {
         let requester = RequesterIdentity {
             did: "did:intyga:service:deploy-pipeline".to_string(),
@@ -1066,7 +1276,8 @@ mod tests {
             &default_requirement(),
             "c_8f91a2",
             "2999-01-01T00:00:00.000Z",
-        );
+        )
+        .expect("canonicalize fixture payload");
 
         let sk = test_signing_key();
         let sig: Signature = sk.sign(canonical.as_bytes());
@@ -1259,6 +1470,32 @@ mod tests {
         serde_json::from_str(&raw).expect("parse golden vectors")
     }
 
+    /// Runs the canonicalizer against the same `stableStringify` cases the TypeScript and Python
+    /// suites use. This port implements its own `stable_stringify` but never checked it against the
+    /// shared file — the receipts happen to exercise none of the awkward inputs, which is how a
+    /// whole-valued-float divergence survived.
+    ///
+    /// NOTE what this CANNOT catch: JSON has no int/float distinction, so `100.0` in the vector file
+    /// round-trips to an integer-typed `Value` here. The f64 path is pinned by
+    /// `test_stable_stringify_whole_floats_match_javascript`, which builds the value in Rust.
+    #[test]
+    fn test_shared_stable_stringify_vectors() {
+        let doc = golden_vectors();
+        let cases = doc["stableStringify"]
+            .as_array()
+            .expect("canonical-vectors.json carries no stableStringify cases");
+        assert!(!cases.is_empty());
+        for c in cases {
+            let got = stable_stringify(&c["value"]).expect("vector value must canonicalize");
+            assert_eq!(
+                got,
+                c["expected"].as_str().unwrap(),
+                "stableStringify[{}]",
+                c["name"]
+            );
+        }
+    }
+
     /// Pins the OFFLINE APPROVAL canonicalization against the shared vectors. This is where a port
     /// silently diverges: a Rust build emitting different bytes could not verify an approval any
     /// TypeScript relying party produced, and the failure would look like tampering rather than drift.
@@ -1284,7 +1521,8 @@ mod tests {
                 i["nonce"].as_str().unwrap_or_default(),
                 i["challengedAt"].as_str().unwrap_or_default(),
                 i["expiresAt"].as_str().unwrap_or_default(),
-            );
+            )
+            .expect("canonicalize offline vector");
             assert_eq!(got, case["expected"].as_str().unwrap_or_default());
             assert!(got.contains("\"type\":\"div-offline-intent\""));
         }
@@ -1324,7 +1562,8 @@ mod tests {
                 i["nonce"].as_str().unwrap_or_default(),
                 i["sealedAt"].as_str().unwrap_or_default(),
                 i["expiresAt"].as_str().unwrap_or_default(),
-            );
+            )
+            .expect("canonicalize delegation vector");
             assert_eq!(got, case["expected"].as_str().unwrap_or_default());
             assert!(got.contains("\"type\":\"div-delegation\""));
             assert!(got.contains(
@@ -1354,7 +1593,8 @@ mod tests {
                 i["nonce"].as_str().unwrap_or_default(),
                 i["challengedAt"].as_str().unwrap_or_default(),
                 i["expiresAt"].as_str().unwrap_or_default(),
-            );
+            )
+            .expect("canonicalize offline vector");
             let intent = canonical_intent_payload(
                 i["target"].as_str().unwrap_or_default(),
                 i["actionType"].as_str().unwrap_or_default(),
@@ -1364,7 +1604,8 @@ mod tests {
                 &req,
                 i["nonce"].as_str().unwrap_or_default(),
                 i["expiresAt"].as_str().unwrap_or_default(),
-            );
+            )
+            .expect("canonicalize intent vector");
             assert_ne!(offline, intent, "offline and intent payloads must differ");
         }
     }
@@ -1546,7 +1787,8 @@ mod tests {
             &requirement,
             "c_8f91a2",
             "2026-07-23T19:30:00Z",
-        );
+        )
+        .expect("canonicalize");
         // Strict RFC 8785 JCS: every key sorted; type/version last. Byte-for-byte the string the TS
         // reference implementation (@intyga/mcp-schemas) emits for the same input.
         let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
@@ -1570,7 +1812,8 @@ mod tests {
             &default_requirement(),
             "c_exp",
             "2020-01-01T00:00:00.000Z",
-        );
+        )
+        .expect("canonicalize");
         let sk = test_signing_key();
         let sig: Signature = sk.sign(canonical.as_bytes());
         let spki = sk.verifying_key().to_public_key_der().expect("encode SPKI");
@@ -1600,7 +1843,10 @@ mod tests {
         // Fail-closed by default.
         assert!(verify_approval_receipt(&receipt, &expected).is_err());
         // allow_expired accepts the otherwise-valid proof (audit re-verification).
-        let opts = VerifyOptions { allow_expired: true, ..Default::default() };
+        let opts = VerifyOptions {
+            allow_expired: true,
+            ..Default::default()
+        };
         assert_eq!(
             verify_approval_receipt_with_options(&receipt, &expected, &opts),
             Ok(())
@@ -1610,8 +1856,754 @@ mod tests {
     #[test]
     fn test_rfc3339_parser() {
         assert_eq!(parse_rfc3339_utc_secs("1970-01-01T00:00:00Z"), Some(0));
-        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00.000Z"), Some(1_577_836_800));
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00.000Z"),
+            Some(1_577_836_800)
+        );
         assert_eq!(parse_rfc3339_utc_secs("not-a-date"), None);
-        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00+02:00"), None); // UTC only
+
+        // A numeric offset is ACCEPTED and normalized to UTC. This assertion used to read
+        // `..."+02:00"), None); // UTC only`, and that strictness was a real interoperability
+        // defect rather than rigour: `Date.parse` in the TS reference and `time.RFC3339` in the Go
+        // port both accept an offset, so a receipt they verify was refused here alone. An offset is
+        // only a representation of an instant — normalizing loses nothing and gains parity.
+        //
+        // It mattered because the caller treated None as "skip the window check": a proof carrying
+        // `+00:00` — which denotes UTC, so nothing is even irregular about it — jumped the
+        // offline-window cap in this port while every other port enforced it.
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00+02:00"),
+            Some(1_577_829_600)
+        );
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00-02:00"),
+            Some(1_577_844_000)
+        );
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00+00:00"),
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00Z"),
+            "+00:00 and Z denote the same instant and must parse identically"
+        );
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00.500+01:00"),
+            Some(1_577_833_200)
+        );
+
+        // Malformed zones stay refused — and now that the caller fails closed on None, "refused"
+        // means the verification is refused, not that the window check is skipped.
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00+0200"), None);
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00+99:00"), None);
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00"), None);
+        assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00."), None);
+    }
+
+    // ─── July 2026 audit regressions ────────────────────────────────────────
+
+    /// DIV §5: opting in to AUTO_APPROVED waives the SIGNATURE requirement (steps 6-7), never the
+    /// target-binding and expiry steps (8 and 9). The accept used to sit immediately after the nonce
+    /// comparison, so a receipt was attested having proven only that its nonce matched — an agent
+    /// holding a nonce could get a trivial action auto-approved and present it for a destructive one.
+    #[test]
+    fn test_auto_approved_still_binds_target_and_params() {
+        let requester = RequesterIdentity {
+            did: "did:intyga:service:agent".to_string(),
+            attestation: None,
+        };
+        // What was actually approved: a harmless read on a sandbox, long expired.
+        let approved_params = json!({ "path": "/tmp" });
+        let canonical = canonical_intent_payload(
+            "sandbox-cluster",
+            "listFiles",
+            "List files",
+            &approved_params,
+            &requester,
+            &default_requirement(),
+            "c_nonce_1",
+            "2020-01-01T00:00:00.000Z",
+        )
+        .expect("canonicalize");
+        let receipt = ApprovalReceipt {
+            canonical_payload: canonical,
+            target: Some("sandbox-cluster".to_string()),
+            action_type: Some("listFiles".to_string()),
+            action_description: "List files".to_string(),
+            params: approved_params.clone(),
+            signer_did: None,
+            signer_public_key: None,
+            signature: None,
+            sig_alg: Some("AUTO_APPROVED".to_string()),
+            authenticator_data: None,
+            client_data_json: None,
+            requester: Some(requester),
+            signatures: None,
+            verification_code: "1234".to_string(),
+        };
+
+        // What the relying party is about to execute: something else entirely.
+        let destructive = Expected {
+            target: "prod-db-cluster-01".to_string(),
+            nonce: "c_nonce_1".to_string(),
+            action_type: "deleteDatabase".to_string(),
+            params: json!({ "environment": "production" }),
+            approvers: ApproverTrustAnchor::PublicKeys(vec![]),
+        };
+        let opted_in = VerifyOptions {
+            allow_auto_approved: true,
+            ..Default::default()
+        };
+        assert!(
+            verify_approval_receipt_with_options(&receipt, &destructive, &opted_in).is_err(),
+            "auto-approved receipt for a DIFFERENT action must not verify"
+        );
+
+        let matching = Expected {
+            target: "sandbox-cluster".to_string(),
+            nonce: "c_nonce_1".to_string(),
+            action_type: "listFiles".to_string(),
+            params: approved_params,
+            approvers: ApproverTrustAnchor::PublicKeys(vec![]),
+        };
+        // Refused by default even when the action lines up.
+        assert!(verify_approval_receipt(&receipt, &matching).is_err());
+        // Still expiry-checked once opted in.
+        assert!(
+            verify_approval_receipt_with_options(&receipt, &matching, &opted_in).is_err(),
+            "a 2020-expired auto-approval must not verify"
+        );
+        // The genuine case: matching action, opted in, expiry waived for re-verification.
+        let forensic = VerifyOptions {
+            allow_auto_approved: true,
+            allow_expired: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            verify_approval_receipt_with_options(&receipt, &matching, &forensic),
+            Ok(())
+        );
+    }
+
+    /// Build a signed OFFLINE proof (DIV §5a.2) with the given window endpoints.
+    fn signed_offline_receipt(
+        challenged_at: &str,
+        expires_at: &str,
+    ) -> (ApprovalReceipt, Expected) {
+        let requester = RequesterIdentity {
+            did: "did:intyga:service:pipeline".to_string(),
+            attestation: None,
+        };
+        let params = json!({ "environment": "prod" });
+        let canonical = canonical_offline_intent_payload(
+            "prod-db",
+            "deleteDatabase",
+            "Drop prod",
+            &params,
+            &requester,
+            &default_requirement(),
+            "off-window-test",
+            challenged_at,
+            expires_at,
+        )
+        .expect("canonicalize offline fixture");
+        let sk = test_signing_key();
+        let sig: Signature = sk.sign(canonical.as_bytes());
+        let spki = sk.verifying_key().to_public_key_der().expect("encode SPKI");
+        let pub_b64 = STANDARD.encode(spki.as_bytes());
+
+        let receipt = ApprovalReceipt {
+            canonical_payload: canonical,
+            target: Some("prod-db".to_string()),
+            action_type: Some("deleteDatabase".to_string()),
+            action_description: "Drop prod".to_string(),
+            params: params.clone(),
+            signer_did: Some("did:intyga:human:alice".to_string()),
+            signer_public_key: Some(pub_b64.clone()),
+            signature: Some(STANDARD.encode(sig.to_der().as_bytes())),
+            sig_alg: Some("ES256".to_string()),
+            authenticator_data: None,
+            client_data_json: None,
+            requester: Some(requester),
+            signatures: None,
+            verification_code: "1234".to_string(),
+        };
+        let expected = Expected {
+            target: "prod-db".to_string(),
+            nonce: "off-window-test".to_string(),
+            action_type: "deleteDatabase".to_string(),
+            params,
+            approvers: ApproverTrustAnchor::PublicKeys(vec![pub_b64]),
+        };
+        (receipt, expected)
+    }
+
+    /// DIV §5a.3: the validity window is the ENTIRE revocation story for an offline proof, since an
+    /// offline relying party has no channel to recall one. The cap used to sit inside
+    /// `if let Some(expiry) = parse_rfc3339_utc_secs(&expires_at)`, so an unparseable value skipped
+    /// it — and the only other place expiresAt is parsed is the expiry check, which `allow_expired`
+    /// disables. `allow_offline + allow_expired` is the documented forensic re-verification mode and
+    /// the only mode under which an offline proof is examined at all, so the window was unbounded.
+    ///
+    /// This port was the worst of the three affected: `+00:00` is valid RFC 3339 denoting UTC, and
+    /// both the TS reference and the Go port accept it — only this parser did not, so a proof they
+    /// would refuse for its window passed here.
+    #[test]
+    fn test_offline_window_refuses_unparseable_expiry() {
+        let forensic = VerifyOptions {
+            allow_offline: true,
+            allow_expired: true,
+            ..Default::default()
+        };
+        for expires_at in [
+            "2036-01-01 00:00:00Z",
+            "9999-99-99T99:99:99Z",
+            "garbage",
+            "2036-01-01T00:00:00",
+        ] {
+            let (receipt, expected) = signed_offline_receipt("2026-01-01T00:00:00Z", expires_at);
+            let got = verify_approval_receipt_with_options(&receipt, &expected, &forensic);
+            assert!(
+                got.is_err(),
+                "expiresAt {expires_at:?}: accepted a ~10-year window against a {MAX_OFFLINE_WINDOW_MINUTES}-minute cap"
+            );
+        }
+    }
+
+    #[test]
+    fn test_offline_window_refuses_an_overlong_but_parseable_window() {
+        let forensic = VerifyOptions {
+            allow_offline: true,
+            allow_expired: true,
+            ..Default::default()
+        };
+        // The exact string that passed before: valid RFC 3339, ten years wide, non-Z offset.
+        let (receipt, expected) =
+            signed_offline_receipt("2026-01-01T00:00:00Z", "2036-01-01T00:00:00+00:00");
+        let got = verify_approval_receipt_with_options(&receipt, &expected, &forensic);
+        assert!(got.is_err(), "accepted a 10-year offline window");
+        assert!(
+            got.unwrap_err().contains("over the"),
+            "refused for the wrong reason"
+        );
+    }
+
+    #[test]
+    fn test_offline_window_accepts_a_proof_inside_the_cap() {
+        // The fix must not turn every offline proof into a refusal — including one written with a
+        // numeric offset rather than Z, which the sibling ports accept.
+        let forensic = VerifyOptions {
+            allow_offline: true,
+            allow_expired: true,
+            ..Default::default()
+        };
+        let (receipt, expected) =
+            signed_offline_receipt("2026-01-01T00:00:00Z", "2026-01-01T00:30:00+00:00");
+        assert_eq!(
+            verify_approval_receipt_with_options(&receipt, &expected, &forensic),
+            Ok(())
+        );
+    }
+
+    /// RFC 8785 §3.2.2.3 mandates ES6 Number::toString. serde_json prints whole-valued f64 with a
+    /// decimal point, so a relying party building expected params from its own runtime (an f64
+    /// struct field, `json!({"amount": 100.0})`) got a false "params do not match" on a valid
+    /// receipt. Values parsed from JSON *text* stay integer-typed, which is why this was invisible.
+    #[test]
+    fn test_stable_stringify_whole_floats_match_javascript() {
+        assert_eq!(stable_stringify(&json!(3.0)).unwrap(), "3");
+        assert_eq!(stable_stringify(&json!(100.0)).unwrap(), "100");
+        assert_eq!(stable_stringify(&json!(-7.0)).unwrap(), "-7");
+        assert_eq!(stable_stringify(&json!(0.0)).unwrap(), "0");
+        // -0.0 used to fold silently to "0"; it is now REFUSED, matching the TS producer
+        // (isPortableNumber) — see test_stable_stringify_refuses_non_portable_numbers.
+        // Genuine fractions are untouched.
+        assert_eq!(stable_stringify(&json!(1.5)).unwrap(), "1.5");
+        // Integer-typed values still render as before.
+        assert_eq!(stable_stringify(&json!(3)).unwrap(), "3");
+
+        // The end-to-end consequence: an f64-built param object canonicalizes to the same bytes as
+        // the integer-typed one a signature was produced over.
+        let requester = RequesterIdentity {
+            did: "did:x".to_string(),
+            attestation: None,
+        };
+        let from_runtime = canonical_intent_payload(
+            "t",
+            "a",
+            "d",
+            &json!({ "amount": 100.0 }),
+            &requester,
+            &default_requirement(),
+            "n",
+            "2026-01-01T00:00:00.000Z",
+        )
+        .expect("canonicalize");
+        let from_json_text = canonical_intent_payload(
+            "t",
+            "a",
+            "d",
+            &serde_json::from_str::<Value>(r#"{"amount":100}"#).unwrap(),
+            &requester,
+            &default_requirement(),
+            "n",
+            "2026-01-01T00:00:00.000Z",
+        )
+        .expect("canonicalize");
+        assert_eq!(from_runtime, from_json_text);
+    }
+
+    /// Parity with `isPortableNumber` (@intyga/mcp-schemas) / `NonCanonicalValue` (@intyga/verify):
+    /// numbers whose canonical form diverges across the TS/Go/Rust/Python ports are REFUSED rather
+    /// than serialized. serde_json would print several of these exactly — which is precisely the
+    /// problem: a Rust RP would sign bytes the TS reference refuses to produce, and the mismatch
+    /// would surface at a customer's site looking like tampering.
+    #[test]
+    fn test_stable_stringify_refuses_non_portable_numbers() {
+        // f64 at/above 1e16: every implementation switches to exponent notation at its own threshold.
+        assert!(stable_stringify(&json!(1e16)).is_err());
+        assert!(stable_stringify(&json!(-1e16)).is_err());
+        // The i64/u64 branches must reject the bound TOO: json!(10000000000000000i64) serialized
+        // exactly before this change, while TS refuses it.
+        assert!(stable_stringify(&json!(10_000_000_000_000_000i64)).is_err());
+        assert!(stable_stringify(&json!(100_000_000_000_000_000i64)).is_err()); // 1e17
+        assert!(stable_stringify(&json!(-100_000_000_000_000_000i64)).is_err());
+        assert!(stable_stringify(&json!(10_000_000_000_000_000u64)).is_err());
+        // Tiny non-integer magnitudes: Python's repr goes exponential below 1e-4.
+        assert!(stable_stringify(&json!(0.00001)).is_err());
+        // Negative zero: "-0.0" here, "0" in JS. Previously folded silently; now refused.
+        assert!(stable_stringify(&json!(-0.0)).is_err());
+        // The refusal reaches nested values.
+        assert!(stable_stringify(&json!({ "a": [1, { "b": 1e16 }] })).is_err());
+        // The reason text names the value so the caller can find it.
+        let err = stable_stringify(&json!(1e16)).unwrap_err();
+        assert!(
+            err.contains("portable"),
+            "reason must name portability: {err}"
+        );
+
+        // Boundary acceptances — the exact values the shared floats-portable vector pins.
+        assert_eq!(
+            stable_stringify(&json!(9999999999999998.0)).unwrap(),
+            "9999999999999998"
+        );
+        assert_eq!(
+            stable_stringify(&json!(9_999_999_999_999_998i64)).unwrap(),
+            "9999999999999998"
+        );
+        assert_eq!(stable_stringify(&json!(0.0001)).unwrap(), "0.0001");
+        assert_eq!(stable_stringify(&json!(0)).unwrap(), "0");
+    }
+
+    /// The builders propagate the refusal instead of emitting an unverifiable payload.
+    #[test]
+    fn test_builders_propagate_non_portable_params() {
+        let requester = RequesterIdentity {
+            did: "did:x".to_string(),
+            attestation: None,
+        };
+        let bad = json!({ "amount": 1e16 });
+        assert!(canonical_intent_payload(
+            "t",
+            "a",
+            "d",
+            &bad,
+            &requester,
+            &default_requirement(),
+            "n",
+            "2026-01-01T00:00:00.000Z",
+        )
+        .is_err());
+        assert!(canonical_offline_intent_payload(
+            "t",
+            "a",
+            "d",
+            &bad,
+            &requester,
+            &default_requirement(),
+            "n",
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T00:30:00Z",
+        )
+        .is_err());
+        assert!(canonical_delegation_payload(
+            "t",
+            "a",
+            "d",
+            &bad,
+            &requester,
+            &default_requirement(),
+            &["did:intyga:sre-a".to_string()],
+            1,
+            "n",
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T12:00:00Z",
+        )
+        .is_err());
+    }
+
+    /// A relying party whose OWN expected params contain a non-portable number gets a fail-closed
+    /// refusal that says so — not the tampering-shaped "do not match what was approved", which
+    /// would send an operator hunting for an attacker that does not exist.
+    #[test]
+    fn test_verify_fails_closed_on_non_portable_expected_params() {
+        let (receipt, base) = signed_receipt();
+        let expected = Expected {
+            target: base.target,
+            nonce: base.nonce,
+            action_type: base.action_type,
+            params: json!({ "environment": "staging", "amount": 1e16 }),
+            approvers: base.approvers,
+        };
+        let err = verify_approval_receipt(&receipt, &expected).expect_err("must fail closed");
+        assert!(
+            err.contains("non-portable number"),
+            "reason must name the cause: {err}"
+        );
+        assert!(
+            !err.contains("do not match what was approved"),
+            "must not read as tampering: {err}"
+        );
+    }
+
+    // ─── Witness DoS bounds (MAX_WITNESSES / MAX_REPORTED_FAILURES) ─────────
+
+    /// The single valid witness of `signed_receipt`, as an explicit list entry.
+    fn witness_of(receipt: &ApprovalReceipt) -> ApprovalWitness {
+        ApprovalWitness {
+            signer_did: receipt.signer_did.clone().unwrap_or_default(),
+            signer_public_key: receipt.signer_public_key.clone().unwrap_or_default(),
+            signature: receipt.signature.clone().unwrap_or_default(),
+            sig_alg: receipt.sig_alg.clone(),
+            authenticator_data: None,
+            client_data_json: None,
+        }
+    }
+
+    /// The witness list is attacker-supplied and every entry costs an ECDSA verification per
+    /// candidate key; a real quorum is single digits. A 20,000-witness receipt measured 3.6s of
+    /// blocked verification in the TS reference, in the relying party's own process, immediately
+    /// before the action it gates.
+    #[test]
+    fn test_witness_bound_refused_in_approval_path() {
+        let (mut receipt, expected) = signed_receipt();
+        let witness = witness_of(&receipt);
+        receipt.signatures = Some(vec![witness.clone(); MAX_WITNESSES + 1]);
+        let err =
+            verify_approval_receipt(&receipt, &expected).expect_err("65 witnesses must be refused");
+        assert!(
+            err.contains(&format!("above the {MAX_WITNESSES}")),
+            "unexpected reason: {err}"
+        );
+
+        // Exactly AT the bound is still processed — and 64 copies of one valid witness count as
+        // ONE distinct approver, which satisfies the fixture's 1-of-1 quorum.
+        receipt.signatures = Some(vec![witness; MAX_WITNESSES]);
+        assert_eq!(verify_approval_receipt(&receipt, &expected), Ok(()));
+    }
+
+    /// Build a signed, in-window DELEGATION (DIV §5a.5) fixture.
+    fn signed_delegation_receipt() -> (ApprovalReceipt, Expected) {
+        let requester = RequesterIdentity {
+            did: "did:intyga:service:pipeline".to_string(),
+            attestation: None,
+        };
+        let params = json!({ "environment": "prod" });
+        let delegated_to = vec![
+            "did:intyga:sre-a".to_string(),
+            "did:intyga:sre-b".to_string(),
+        ];
+        let canonical = canonical_delegation_payload(
+            "prod-db",
+            "deleteDatabase",
+            "Drop prod",
+            &params,
+            &requester,
+            &default_requirement(),
+            &delegated_to,
+            1,
+            "del-witness-bound",
+            "2026-01-01T00:00:00Z",
+            "2026-01-02T00:00:00Z",
+        )
+        .expect("canonicalize delegation fixture");
+        let sk = test_signing_key();
+        let sig: Signature = sk.sign(canonical.as_bytes());
+        let spki = sk.verifying_key().to_public_key_der().expect("encode SPKI");
+        let pub_b64 = STANDARD.encode(spki.as_bytes());
+        let receipt = ApprovalReceipt {
+            canonical_payload: canonical,
+            target: Some("prod-db".to_string()),
+            action_type: Some("deleteDatabase".to_string()),
+            action_description: "Drop prod".to_string(),
+            params: params.clone(),
+            signer_did: Some("did:intyga:human:alice".to_string()),
+            signer_public_key: Some(pub_b64.clone()),
+            signature: Some(STANDARD.encode(sig.to_der().as_bytes())),
+            sig_alg: Some("ES256".to_string()),
+            authenticator_data: None,
+            client_data_json: None,
+            requester: Some(requester),
+            signatures: None,
+            verification_code: "1234".to_string(),
+        };
+        let expected = Expected {
+            target: "prod-db".to_string(),
+            nonce: "del-witness-bound".to_string(),
+            action_type: "deleteDatabase".to_string(),
+            params,
+            approvers: ApproverTrustAnchor::PublicKeys(vec![pub_b64]),
+        };
+        (receipt, expected)
+    }
+
+    /// The delegation path processes the same attacker-supplied witness shape, so it carries the
+    /// same bound.
+    #[test]
+    fn test_witness_bound_refused_in_delegation_path() {
+        let (mut receipt, expected) = signed_delegation_receipt();
+        // Evaluate within the delegation's 2026 window rather than waiving expiry.
+        let opts = VerifyOptions {
+            as_of_unix_secs: parse_rfc3339_utc_secs("2026-01-01T12:00:00Z"),
+            ..Default::default()
+        };
+        assert!(
+            verify_delegation(&receipt, &expected, &opts).is_ok(),
+            "fixture must be valid before inflating the witness list"
+        );
+        let witness = witness_of(&receipt);
+        receipt.signatures = Some(vec![witness; MAX_WITNESSES + 1]);
+        let err = verify_delegation(&receipt, &expected, &opts)
+            .expect_err("65-witness delegation must be refused");
+        assert!(
+            err.contains(&format!("above the {MAX_WITNESSES}")),
+            "unexpected reason: {err}"
+        );
+    }
+
+    /// Folding every per-witness failure into the reason string is what turned a long witness list
+    /// into 1.16 MB of error text in the TS reference. The fold is capped at MAX_REPORTED_FAILURES
+    /// entries with a "+N more" suffix.
+    #[test]
+    fn test_failure_string_is_bounded() {
+        let (mut receipt, expected) = signed_receipt();
+        let garbage: Vec<ApprovalWitness> = (0..MAX_WITNESSES)
+            .map(|i| ApprovalWitness {
+                signer_did: format!("did:intyga:unknown-{i}"),
+                signer_public_key: "not-a-key".to_string(),
+                signature: STANDARD.encode(b"garbage-signature"),
+                sig_alg: Some("ES256".to_string()),
+                authenticator_data: None,
+                client_data_json: None,
+            })
+            .collect();
+        receipt.signatures = Some(garbage);
+        let err = verify_approval_receipt(&receipt, &expected)
+            .expect_err("garbage witnesses cannot meet quorum");
+        assert!(err.contains("quorum not met"), "unexpected reason: {err}");
+        assert!(
+            err.contains(&format!("+{} more", MAX_WITNESSES - MAX_REPORTED_FAILURES)),
+            "elided-count suffix missing: {err}"
+        );
+        assert!(
+            err.len() < 2048,
+            "failure string not bounded: {} bytes",
+            err.len()
+        );
+    }
+
+    /// Byte-parity for the ORDINARY intent-payload builder against the shared golden vectors —
+    /// the same `intentPayloads` cases the TS and Python suites consume. The offline and delegation
+    /// builders were already pinned this way; the ordinary builder relied on local fixtures only.
+    #[test]
+    fn test_shared_intent_payload_vectors() {
+        let doc = golden_vectors();
+        let cases = doc["intentPayloads"]
+            .as_array()
+            .expect("intentPayloads array");
+        assert!(!cases.is_empty(), "no intent-payload vectors present");
+
+        for case in cases {
+            let i = &case["input"];
+            let requester: RequesterIdentity =
+                serde_json::from_value(i["requester"].clone()).expect("requester");
+            let got = canonical_intent_payload(
+                i["target"].as_str().unwrap_or_default(),
+                i["actionType"].as_str().unwrap_or_default(),
+                i["actionDescription"].as_str().unwrap_or_default(),
+                &i["params"],
+                &requester,
+                &vector_requirement(i),
+                i["nonce"].as_str().unwrap_or_default(),
+                i["expiresAt"].as_str().unwrap_or_default(),
+            )
+            .expect("canonicalize intent vector");
+            assert_eq!(
+                got,
+                case["expected"].as_str().unwrap_or_default(),
+                "intentPayloads[{}]",
+                i["nonce"]
+            );
+            assert!(got.contains("\"type\":\"div-intent-verification\""));
+        }
+    }
+
+    // ── Shared receipt-level vectors: quorum / offline / delegation ─────────
+    // Mirrors packages/verify/src/vectors.test.ts. NOTE: canonical-vectors.json also carries a
+    // `documentPayloads` section whose own `note` marks it TS-only (document signing is a
+    // gateway-side ceremony, not part of the relying-party offline surface the Go/Rust/Python
+    // ports implement) — this port deliberately has no consumer or builder for it.
+
+    /// DID-mode multi-key trust anchor from a vector `approvers` table (`[{did, keys: [...]}]`).
+    /// Multi-key matters: one vector identity deliberately holds TWO credentials, so a resolver
+    /// returning all keys for a DID is required to exercise identity-counting rather than
+    /// credential-counting.
+    fn vector_did_anchor(approvers: &Value) -> ApproverTrustAnchor {
+        let table: Vec<(String, Vec<String>)> = approvers
+            .as_array()
+            .expect("approvers array")
+            .iter()
+            .map(|a| {
+                (
+                    a["did"].as_str().expect("approver did").to_string(),
+                    a["keys"]
+                        .as_array()
+                        .expect("approver keys")
+                        .iter()
+                        .filter_map(|k| k.as_str().map(String::from))
+                        .collect(),
+                )
+            })
+            .collect();
+        let dids: Vec<String> = table.iter().map(|(d, _)| d.clone()).collect();
+        ApproverTrustAnchor::DidsMultiKey {
+            dids,
+            resolve: Box::new(move |did: &str| {
+                table
+                    .iter()
+                    .find(|(d, _)| d == did)
+                    .map(|(_, keys)| keys.clone())
+                    .unwrap_or_default()
+            }),
+        }
+    }
+
+    /// The expectation a relying party would assert, rebuilt from the receipt's echoes — target,
+    /// actionType and params from the receipt fields, the nonce parsed out of canonicalPayload
+    /// (exactly as the TS consumer's `expectationFor` does).
+    fn vector_expectation(receipt: &ApprovalReceipt, approvers: ApproverTrustAnchor) -> Expected {
+        Expected {
+            target: receipt.target.clone().unwrap_or_default(),
+            nonce: parse_nonce(&receipt.canonical_payload),
+            action_type: receipt.action_type.clone().unwrap_or_default(),
+            params: receipt.params.clone(),
+            approvers,
+        }
+    }
+
+    /// Consumes the shared `quorumReceipts` vectors: a quorum counts distinct approver IDENTITIES,
+    /// never signature entries. All cases share one signed requirement (requiredApprovals: 2 +
+    /// requesterCannotApprove) and differ only in who signed.
+    ///
+    /// Deviation from the TS consumer, stated plainly: the vectors carry `expectSigners`, but this
+    /// port's `verify_approval_receipt` returns `Ok(())` with no verified-signer list, so there is
+    /// nothing to compare it against. The property those signers express is still pinned — the
+    /// one-approver-two-credentials case fails its 2-of-N quorum exactly because two of alice's
+    /// keys resolve to ONE identity.
+    #[test]
+    fn test_shared_quorum_receipt_vectors() {
+        let doc = golden_vectors();
+        let q = &doc["quorumReceipts"];
+        let cases = q["cases"].as_array().expect("quorumReceipts cases");
+        assert!(!cases.is_empty(), "no quorum-receipt vectors present");
+        for case in cases {
+            let name = case["name"].as_str().unwrap_or("<unnamed>");
+            let receipt: ApprovalReceipt =
+                serde_json::from_value(case["receipt"].clone()).expect("deserialize receipt");
+            let expected = vector_expectation(&receipt, vector_did_anchor(&q["approvers"]));
+            let result = verify_approval_receipt(&receipt, &expected);
+            let expect_ok = case["expectOk"].as_bool().unwrap_or(false);
+            assert_eq!(result.is_ok(), expect_ok, "{name}: {result:?}");
+            // Advisory in the vectors; asserted here because the Rust phrasing does contain it.
+            if let Some(reason_part) = case["expectReasonIncludes"].as_str() {
+                let err = result.expect_err("expectReasonIncludes only appears on refusals");
+                assert!(
+                    err.contains(reason_part),
+                    "{name}: reason {err:?} should contain {reason_part:?}"
+                );
+            }
+        }
+    }
+
+    /// Consumes the shared `offlineReceipts` vectors: an offline proof is refused without the
+    /// `allow_offline` opt-in, and a validly SIGNED proof whose window exceeds the 60-minute cap
+    /// fails even with it.
+    #[test]
+    fn test_shared_offline_receipt_vectors() {
+        let doc = golden_vectors();
+        let cases = doc["offlineReceipts"]
+            .as_array()
+            .expect("offlineReceipts array");
+        assert!(!cases.is_empty(), "no offline-receipt vectors present");
+        let signer_key = doc["signerKey"]["spkiB64"]
+            .as_str()
+            .expect("signerKey")
+            .to_string();
+        for case in cases {
+            let name = case["name"].as_str().unwrap_or("<unnamed>");
+            let receipt: ApprovalReceipt =
+                serde_json::from_value(case["receipt"].clone()).expect("deserialize receipt");
+            let expected = vector_expectation(
+                &receipt,
+                ApproverTrustAnchor::PublicKeys(vec![signer_key.clone()]),
+            );
+            let opts = VerifyOptions {
+                allow_offline: true,
+                ..Default::default()
+            };
+            let with_opt_in = verify_approval_receipt_with_options(&receipt, &expected, &opts);
+            let expect_ok = case["expectOkWithOptIn"].as_bool().unwrap_or(false);
+            assert_eq!(with_opt_in.is_ok(), expect_ok, "{name}: {with_opt_in:?}");
+            if case["refusedWithoutOptIn"].as_bool().unwrap_or(false) {
+                assert!(
+                    verify_approval_receipt(&receipt, &expected).is_err(),
+                    "{name} must be refused without the offline opt-in"
+                );
+            }
+        }
+    }
+
+    /// Consumes the shared `delegationReceipts` vectors through `verify_delegation`: the sealing
+    /// quorum (two ordinary approvers, one with two credentials), the reported delegated set and
+    /// quorum on the positive case, and the 72-hour window cap on the negative one.
+    #[test]
+    fn test_shared_delegation_receipt_vectors() {
+        let doc = golden_vectors();
+        let d = &doc["delegationReceipts"];
+        let cases = d["cases"].as_array().expect("delegationReceipts cases");
+        assert!(!cases.is_empty(), "no delegation-receipt vectors present");
+        for case in cases {
+            let name = case["name"].as_str().unwrap_or("<unnamed>");
+            let receipt: ApprovalReceipt =
+                serde_json::from_value(case["receipt"].clone()).expect("deserialize receipt");
+            let expected = vector_expectation(&receipt, vector_did_anchor(&d["approvers"]));
+            let result = verify_delegation(&receipt, &expected, &VerifyOptions::default());
+            let expect_ok = case["expectOk"].as_bool().unwrap_or(false);
+            assert_eq!(result.is_ok(), expect_ok, "{name}: {result:?}");
+            if expect_ok {
+                let verified = result.expect("checked ok above");
+                let want_to: Vec<String> = case["delegatedTo"]
+                    .as_array()
+                    .expect("positive case carries delegatedTo")
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                assert_eq!(verified.delegated_to, want_to, "{name}");
+                assert_eq!(
+                    i64::from(verified.delegated_quorum),
+                    case["delegatedQuorum"]
+                        .as_i64()
+                        .expect("positive case carries delegatedQuorum"),
+                    "{name}"
+                );
+            }
+        }
     }
 }

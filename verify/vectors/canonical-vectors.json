@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-30T05:24:40.985Z",
+  "generated": "2026-08-01T04:42:15.468Z",
   "note": "Cross-language wire-contract vectors. Consumed by packages/mcp-schemas tests (TS) and packages/sdk-python tests. Regenerate ONLY on a deliberate format change.",
   "stableStringify": [
     {
@@ -113,6 +113,33 @@
         ]
       },
       "expected": "{\"arr\":[0,1,-1,1000000],\"i\":3}"
+    },
+    {
+      "name": "html-sensitive-chars",
+      "value": {
+        "amp": "Pay Alice & Bob",
+        "lt": "a<b",
+        "gt": "a>b",
+        "url": "https://api.example.com/v1?a=1&b=2",
+        "redacted": "<redacted>",
+        "key&with<html>": "value"
+      },
+      "expected": "{\"amp\":\"Pay Alice & Bob\",\"gt\":\"a>b\",\"key&with<html>\":\"value\",\"lt\":\"a<b\",\"redacted\":\"<redacted>\",\"url\":\"https://api.example.com/v1?a=1&b=2\"}"
+    },
+    {
+      "name": "whole-valued-floats",
+      "value": {
+        "amount": 100,
+        "three": 3,
+        "negative": -7,
+        "zero": 0,
+        "mixed": [
+          1,
+          2.5,
+          3
+        ]
+      },
+      "expected": "{\"amount\":100,\"mixed\":[1,2.5,3],\"negative\":-7,\"three\":3,\"zero\":0}"
     }
   ],
   "intentPayloads": [
@@ -454,8 +481,8 @@
     }
   ],
   "signerKey": {
-    "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdrE1j6ZPYD8rXS9SegpEogFMD4to6sB9noFsCG0PFfJG0t6wy4CqZzV9AFS8abtxQ6RbS7TDAzLx6muyxjkUbA==",
-    "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgXBbr5k03gl03q/WQxJbgvljLvpWLDLpreqUXc4gAtQqhRANCAAR2sTWPpk9gPytdL1J6CkSiAUwPi2jqwH2egWwIbQ8V8kbS3rDLgKpnNX0AVLxpu3FDpFtLtMMDMvHqa7LGORRs"
+    "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+    "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgBChaeUbmD2AKHC1zT/zlWhWCOdVVfeZRzQs+ZYM80XihRANCAARuOmaDAT8HpsUdIwrXM9epQY4+nToFXq2bvpGZ6gHCs/yyfi3h177699xns/lfe4HMej/IhWR+FNFLA5aP04p1"
   },
   "receipts": [
     {
@@ -485,8 +512,8 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdrE1j6ZPYD8rXS9SegpEogFMD4to6sB9noFsCG0PFfJG0t6wy4CqZzV9AFS8abtxQ6RbS7TDAzLx6muyxjkUbA==",
-        "signature": "qIT7ptW9hdxW2TvT4kO1LuIlBkLq6/2YRbEeY4oXrWe7V0zGKXR5UaPnlSG1KqSjv9ubbDqpJFeDtqtun28wRw==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "9W4SEH+JdWf1yjGFEwb/nTVPoNx1RL4DrY1ijT2Xk/VZsUCLNEolMA0JPNCCo/01vtRkNGVD5agGNV7tAlS2sA==",
         "sigAlg": "ES256",
         "verificationCode": "EF82-F3E8"
       },
@@ -505,8 +532,8 @@
           "attestation": null
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdrE1j6ZPYD8rXS9SegpEogFMD4to6sB9noFsCG0PFfJG0t6wy4CqZzV9AFS8abtxQ6RbS7TDAzLx6muyxjkUbA==",
-        "signature": "MEUCIQCc3sw9HObzgbodgZ8wRRnf05LE6Z6J77J926bp9UXH9QIgDNXthVt4GN9FDryALc59+suHDj2/GmRDrfcZjQO8ZbM=",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "MEQCIHMjigssGKLDV0jvdjfQoVc1tkp/vLN+I3thcNefqPkOAiBEbakhSBVmLnTwe54ZuOu0Cc2faxL9MX4oDBqAAOk+Tg==",
         "sigAlg": "ES256",
         "verificationCode": "FAEC-FB5E"
       },
@@ -539,8 +566,8 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdrE1j6ZPYD8rXS9SegpEogFMD4to6sB9noFsCG0PFfJG0t6wy4CqZzV9AFS8abtxQ6RbS7TDAzLx6muyxjkUbA==",
-        "signature": "9HrIxf1r66PWtDiJ4p9a/ILwGYavho88gXAKeQnVgR9cD0JMkIdzuY6GIBYqzWfcJ1MKlhMIByzDVPaxnVLIRQ==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "yvXDz0oAcmlt0zG8Yt+h3CpNy6sYWUvdJm9cNOb4Zq2d66BJSsSDEBwcnw3/Xy9VDnAbc+jkXWoUyx0sZ04RVw==",
         "sigAlg": "ES256",
         "verificationCode": "EF82-F3E8"
       },
@@ -599,18 +626,317 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdrE1j6ZPYD8rXS9SegpEogFMD4to6sB9noFsCG0PFfJG0t6wy4CqZzV9AFS8abtxQ6RbS7TDAzLx6muyxjkUbA==",
-        "signature": "NCfdBHChkOnYw8sOcpMQBzzGsf/tM/46QTl53gdTnoJwzqkRsepmO7ezKTvt1VM178aTZ7OpMWgpX50IOXZQUw==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "DDW6qPGSKBLHGS5tZbAcyHc4dSsHjVATYcJGrpxbXVfD8Op9P7hReBAP+2zFARpT4W/oJfYbF8Jee9jKniWIPA==",
         "sigAlg": "ES256",
         "verificationCode": "EF82-F3E8"
       },
       "expectOk": false
     }
   ],
+  "quorumReceipts": {
+    "approvers": [
+      {
+        "did": "did:intyga:approver-alice",
+        "keys": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjD9WuilISCbV/NKHq9lJgoAbbB4atvs62PaXpWPD9tCYDcDFdWqrQHV0wU7YWM9wjkMXNOu8Ph0U7xU8up4oYA=="
+        ]
+      },
+      {
+        "did": "did:intyga:approver-bob",
+        "keys": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw=="
+        ]
+      },
+      {
+        "did": "did:intyga:agent-quorum",
+        "keys": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPzKfrGEZpy8b0pPPGdV7b8rgTH+tiVLNosDFj8pe6r/xEI1jjX/WRwSRkHndDFZ/3AKp3kOcT5bHlX5Tf7HrMg=="
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "name": "two-distinct-approvers-meet-2-of-n",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $75,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"aaaa2222-bbbb-4000-8000-quorum000001\",\"params\":{\"amount\":75000,\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-quorum\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments-gateway",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire $75,000 — dual control",
+          "params": {
+            "amount": 75000,
+            "vendor": "ACME-123"
+          },
+          "requester": {
+            "did": "did:intyga:agent-quorum",
+            "attestation": null
+          },
+          "verificationCode": "E3CA-079D",
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+              "signature": "a7sWyUhaZmDfcga7qWU5DijgVLFjDplChFrJF+KGd5VduuP0LRWhw4tUvneP7QvgHqfcZ3ZgksHcqc8r4hanEw==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw==",
+              "signature": "iLl72zzZd9hjbd3GZO4wAEtG80lst1U+AntMB+d3DhgmqV6c/jJsHTmxsY5iDwbZFWHu7FaYMPLeanAe8lNPEg==",
+              "sigAlg": "ES256"
+            }
+          ]
+        },
+        "expectOk": true,
+        "expectSigners": [
+          "did:intyga:approver-alice",
+          "did:intyga:approver-bob"
+        ]
+      },
+      {
+        "name": "one-approver-two-credentials-is-one-approval",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $75,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"aaaa2222-bbbb-4000-8000-quorum000001\",\"params\":{\"amount\":75000,\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-quorum\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments-gateway",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire $75,000 — dual control",
+          "params": {
+            "amount": 75000,
+            "vendor": "ACME-123"
+          },
+          "requester": {
+            "did": "did:intyga:agent-quorum",
+            "attestation": null
+          },
+          "verificationCode": "E3CA-079D",
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+              "signature": "EDXdVqdRkm9ftYNrqEe/xb4/Gt0YNylFoVrfM05ln42PnE30/Bn5HiJGyw1XiA/CwR6O/GTTGQ87yezaLPnKiA==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjD9WuilISCbV/NKHq9lJgoAbbB4atvs62PaXpWPD9tCYDcDFdWqrQHV0wU7YWM9wjkMXNOu8Ph0U7xU8up4oYA==",
+              "signature": "BCX9DhPPVdL8AIpBIoPxw+QAEjP05w0ZufoTLUOmsFtbudOJK3YAbxMFz7wa05NKWoj4hHpCPoe/96okj3cn7A==",
+              "sigAlg": "ES256"
+            }
+          ]
+        },
+        "expectOk": false,
+        "expectReasonIncludes": "quorum not met"
+      },
+      {
+        "name": "one-valid-signature-of-two-required",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $75,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"aaaa2222-bbbb-4000-8000-quorum000001\",\"params\":{\"amount\":75000,\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-quorum\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments-gateway",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire $75,000 — dual control",
+          "params": {
+            "amount": 75000,
+            "vendor": "ACME-123"
+          },
+          "requester": {
+            "did": "did:intyga:agent-quorum",
+            "attestation": null
+          },
+          "verificationCode": "E3CA-079D",
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw==",
+              "signature": "Ke53pj6l8cpOsnFz4Tt44dVZ0DqmEsQYWNhcXRinXDKTydc8upRFu/OfHqoGfewD8vaIaeJfVUEvZEL5RtHpmw==",
+              "sigAlg": "ES256"
+            }
+          ]
+        },
+        "expectOk": false,
+        "expectReasonIncludes": "quorum not met"
+      },
+      {
+        "name": "requester-signature-cannot-satisfy-four-eyes",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $75,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"aaaa2222-bbbb-4000-8000-quorum000001\",\"params\":{\"amount\":75000,\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-quorum\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments-gateway",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire $75,000 — dual control",
+          "params": {
+            "amount": 75000,
+            "vendor": "ACME-123"
+          },
+          "requester": {
+            "did": "did:intyga:agent-quorum",
+            "attestation": null
+          },
+          "verificationCode": "E3CA-079D",
+          "signatures": [
+            {
+              "signerDid": "did:intyga:agent-quorum",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPzKfrGEZpy8b0pPPGdV7b8rgTH+tiVLNosDFj8pe6r/xEI1jjX/WRwSRkHndDFZ/3AKp3kOcT5bHlX5Tf7HrMg==",
+              "signature": "OXu29baRvuRzfte3qxFQ+HFO0v5ukweG3dwuN/viApph+US8N/zTyYpg/v9TDRR/qr2crqhFFHjLKPTyUTDohg==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw==",
+              "signature": "3crE0Pfmgt2EAFI11WiKieZYRttFEuHjA12xduWQj3tZA+jzKjzGVWJ7HKZXUM0fIh45ayAYH0//XVC50CMrjA==",
+              "sigAlg": "ES256"
+            }
+          ]
+        },
+        "expectOk": false,
+        "expectReasonIncludes": "quorum not met"
+      }
+    ]
+  },
+  "offlineReceipts": [
+    {
+      "name": "offline-within-window-verifies-with-opt-in",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"backend.action\",\"challengedAt\":\"2998-12-31T23:30:00.000Z\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1},\"target\":\"prod-db-cluster-01\",\"type\":\"div-offline-intent\",\"v\":1}",
+        "target": "prod-db-cluster-01",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:intyga:key:abc",
+          "attestation": null
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "MjVGfY/raqlOZdBiuKAECTu4ueVjauYW6xS2aN7eLf7NcZSWML1WQGG6IRM4r3sv5tKC9dXw08eJTS8xCTi6kg==",
+        "sigAlg": "ES256",
+        "verificationCode": "C31F-A293"
+      },
+      "expectOkWithOptIn": true,
+      "refusedWithoutOptIn": true
+    },
+    {
+      "name": "offline-window-exceeds-60-minutes",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"backend.action\",\"challengedAt\":\"2998-12-31T22:00:00.000Z\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1},\"target\":\"prod-db-cluster-01\",\"type\":\"div-offline-intent\",\"v\":1}",
+        "target": "prod-db-cluster-01",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:intyga:key:abc",
+          "attestation": null
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbjpmgwE/B6bFHSMK1zPXqUGOPp06BV6tm76RmeoBwrP8sn4t4de++vfcZ7P5X3uBzHo/yIVkfhTRSwOWj9OKdQ==",
+        "signature": "B+AVMZlPv4Ug/IFQe8Q7+tSQnAjU9SPvzMprf2iq34lYMWoUX3IiVi2Sd4qxVc+rh6ddivIiYab1Rb97eAfTHg==",
+        "sigAlg": "ES256",
+        "verificationCode": "FA82-F211"
+      },
+      "expectOkWithOptIn": false
+    }
+  ],
+  "delegationReceipts": {
+    "approvers": [
+      {
+        "did": "did:intyga:approver-alice",
+        "keys": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjD9WuilISCbV/NKHq9lJgoAbbB4atvs62PaXpWPD9tCYDcDFdWqrQHV0wU7YWM9wjkMXNOu8Ph0U7xU8up4oYA=="
+        ]
+      },
+      {
+        "did": "did:intyga:approver-bob",
+        "keys": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw=="
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "name": "delegation-sealed-by-two-approvers",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"backend.action\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-b\",\"did:intyga:sre-c\"],\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"dddd3333-eeee-4000-8000-delegate0001\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"sealedAt\":\"2998-12-30T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-delegation\",\"v\":1}",
+          "target": "prod-db-cluster-01",
+          "actionType": "backend.action",
+          "actionDescription": "Delete production database",
+          "params": {},
+          "requester": {
+            "did": "did:intyga:key:abc",
+            "attestation": null
+          },
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+              "signature": "QdM7hM26lE0ZdmW6f1tjLSCuH2FCDTXIM0P0+mmFu4JnU+sC9/eJdDCApGxbDQRkCxxMDfO2DH2jYs4HLm9z7Q==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw==",
+              "signature": "7XxSDQ3FtoWDYkUX/0ci3FgQimG0hWPF8ilJ/5XbYsSxJ2ZYjapDfl32Eu82HY6xitWNLUlF0h5WZSHPaylg1g==",
+              "sigAlg": "ES256"
+            }
+          ],
+          "verificationCode": "013F-74D3"
+        },
+        "expectOk": true,
+        "delegatedTo": [
+          "did:intyga:sre-a",
+          "did:intyga:sre-b",
+          "did:intyga:sre-c"
+        ],
+        "delegatedQuorum": 2
+      },
+      {
+        "name": "delegation-window-exceeds-72-hours",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"backend.action\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-b\",\"did:intyga:sre-c\"],\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"dddd3333-eeee-4000-8000-delegate0001\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2},\"sealedAt\":\"2998-12-27T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-delegation\",\"v\":1}",
+          "target": "prod-db-cluster-01",
+          "actionType": "backend.action",
+          "actionDescription": "Delete production database",
+          "params": {},
+          "requester": {
+            "did": "did:intyga:key:abc",
+            "attestation": null
+          },
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2gYxaoWLFmhJFU6cMd3Xjm52WTOOi0RClSsKgx48EAggqMvGFxndHT1EftquFtDvQX16URPS20NCuVYQATgRpg==",
+              "signature": "0nBbwMIVrjfZeENCxFuBP3FZir7Pj+AAbOKMM0NaVZeTtUwbkO/8JNJzWkFBeRfGaoZ95iacc2nn001IZ0sx+Q==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqhTt6NwGCOd4QR6YF8Bj08CFMGZWnR6FvvqszU1UOFovntdbJLy8OCFuNZX2UhPQdHlW4prqwHovhZfCFAk3kw==",
+              "signature": "chcfke2ZThTD84Kf/HTTrbuVdxrYKj0JsYXVORodAJvg5maJMPmKRSiypWSkYlT+mHX7F9+GgEH0/X9uh1fCMQ==",
+              "sigAlg": "ES256"
+            }
+          ],
+          "verificationCode": "9859-F104"
+        },
+        "expectOk": false
+      }
+    ]
+  },
+  "documentPayloads": {
+    "note": "TS-only: document signing is a gateway-side ceremony (apps/gateway/src/integrity.ts) verified by the gateway, not part of the relying-party offline-verification surface the Go/Rust/Python ports implement. Their absence of a consumer for this section is deliberate, not an oversight.",
+    "cases": [
+      {
+        "input": {
+          "documentHash": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+          "nonce": "eeee4444-ffff-4000-8000-document0001",
+          "documentName": "Q3 vendor contract.pdf"
+        },
+        "expected": "{\"v\":1,\"type\":\"integrity-document\",\"documentHash\":\"d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5\",\"nonce\":\"eeee4444-ffff-4000-8000-document0001\",\"documentName\":\"Q3 vendor contract.pdf\"}"
+      }
+    ]
+  },
   "policy": {
-    "rsaPubB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjxjr6gHwiluljflQWbT/9jtk107hl5aui9ZD3R4PnEOlaa1vjDEiGGiNQZWBdf7w6zH3V8nqzaEsMtWck7UE7pJ0AZ41ZBdAzT/32SoXYkSiajUPCtcqgOpaonNxA65oQdwc4nwAr9CHvh6cYg4ND8t/algyXranPPK2vyf61xpq/NX4I1yB2zPCenFnoZM6TBh3mvPiCDmQ3lUXnrVbASTh+6s9YY1w1Jt4cuT+YLWQ6dvt7KnUREv1jHfKXQ1LmnFuNAHRNqKv8611AfJAzP3JKVooGV1UFkkmGIegLpcHtMdYopOXyxmBVZsYI0BXNJLG14m6XVWXY6aGyLdP6wIDAQAB",
-    "rsaPrivB64": "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCPGOvqAfCKW6WN+VBZtP/2O2TXTuGXlq6L1kPdHg+cQ6VprW+MMSIYaI1BlYF1/vDrMfdXyerNoSwy1ZyTtQTuknQBnjVkF0DNP/fZKhdiRKJqNQ8K1yqA6lqic3EDrmhB3BzifACv0Ie+HpxiDg0Py39qWDJetqc88ra/J/rXGmr81fgjXIHbM8J6cWehkzpMGHea8+IIOZDeVReetVsBJOH7qz1hjXDUm3hy5P5gtZDp2+3sqdRES/WMd8pdDUuacW40AdE2oq/zrXUB8kDM/ckpWigZXVQWSSYYh6Aulwe0x1iik5fLGYFVmxgjQFc0ksbXibpdVZdjpobIt0/rAgMBAAECggEAQ3MAyEVvxxeZuoj4qcAaIksupholVZmN3pX5WQFxZDuyfVRlztPd+VlWs8IvypmHn6TmrHedeJ1uwutTKYBaucVIbvbOvcYEInrzbWZcrVIiqCMoWvi+rRNJ82asr4qG0/xXlR3UCQsm4KN3HPT4jShjf5Hg9CnuPFk/cGz83GR/5nAMueLrGDhf+HpOOc/SwvG1do7Ka2NLy5ckelAS0gvxSHNtYwu5GhIVm5EDyHhqA4jmu08pwDOazZACVJZuemIMnaNPoTymJ/sgVUiSnjE87nsIDEqUBAYzmfLxrR6NsyTOWJrtQetVs2E1w6QtyG+/jprZ7RcTDqfR8g5g+QKBgQDE0NGTFgtg7oPyEn1LkD6DOFmuR/qn65eVg74y2KP3bB4MrA8nGyCZRW51g8suZFpObG2UqStWRxvuL8TEW7N90hBsENj17FEAFkMUV21AhVyBpdwUcBxTQwDVR2ELZvk2kOEryeOO4RxFX3BreCnYH3ZfBXecBmLYNOj5JI4tfQKBgQC6IMe2577kjRcJtHvMaP4XsPdX3J80C0xbYO392NV4riwKQTE/7lKvt1NmhBMhS7itZ1JNdf9Id5yMtcnOTVJR6DsHMfPuq2a/8fUJVyarLjKgqVLppHEw1h1qezD590p1HQQ8skpvUf0a0swy/RC7uR5cg5AOA6uM20wwCc8PhwKBgQCAV2tSbt2cp+yCvmvWCom5J9XTQDzDo22FohM1NPA3N9mgidKXvajUSeJt3zNvXSFGYo5Skr4f1N7xw1Scdu/k7EapMZNJSoDHfbzgVuJ3YH+iS3XoHfNamCbC7Xjq5os8ed1boJszYLf+xO2aJxGiTWHzNK16oO9z7Yy+aogMQQKBgQC55SlyjW0DucKrp74Jf0dgBBhVgXzkLvCZR2sLIHi8qkBEEa6NqoqdAx1iA0FT/Nu7HLl/sf1AtG3/v0SKLoGsWqQx4HtAAaKCzLauGIP/bgmUmui7f8ipPQBuLBHTZl/QLiXgNTXQjvOaybS2rDf9NbuULLZAuPuqmBA03mcWmwKBgA5CoqXHi+lPdhNTEcF8xN2AWKIYw1sNLscI0pVcWUqyT+YBpZ9mUCSBogXcEYGBJNIc7x97gkbqnY25GTeIiahzvMWyFZsynaP4dmvsL5om1rWciARZXkJkd0QPHbHgMaqEw1Zi+xd/D2OEmcyeAwFTKejJAUnb3CXVrtDbXkSH",
+    "rsaPubB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwzi8sPWMYBWgGh9+YDX+YauClhzJft2tSxUHV7BjXpe6txy77OcJVZDq1m7VjupH8PegonS74HKPUw2SSBLAT6HrBsyMfr7OReqYenkTPuhB6XhVwo2iAKl2CqEJrLbnOwJLimcqk/7/8FgylizERzzEUxUjJTItFbkjSfm6YowVMSjTiV95vBJtWof5Ai6mI44XP/qIUM+r59xo34laV5n7NcVGoLlNsWuqPILuYN09Id1kpTg/zJxIF+NqVybE+7SNkqNdraw3xrVYJMybW+2CdGAjrro7HvRwp6zrysVvp6yZAAj/vOQlCVhO96amxPT1+EJiW/k/ZLGqUYErDwIDAQAB",
+    "rsaPrivB64": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDDOLyw9YxgFaAaH35gNf5hq4KWHMl+3a1LFQdXsGNel7q3HLvs5wlVkOrWbtWO6kfw96CidLvgco9TDZJIEsBPoesGzIx+vs5F6ph6eRM+6EHpeFXCjaIAqXYKoQmstuc7AkuKZyqT/v/wWDKWLMRHPMRTFSMlMi0VuSNJ+bpijBUxKNOJX3m8Em1ah/kCLqYjjhc/+ohQz6vn3GjfiVpXmfs1xUaguU2xa6o8gu5g3T0h3WSlOD/MnEgX42pXJsT7tI2So12trDfGtVgkzJtb7YJ0YCOuujse9HCnrOvKxW+nrJkACP+85CUJWE73pqbE9PX4QmJb+T9ksapRgSsPAgMBAAECggEAT6l8Xh2lDaRlc6N8V1hRGJv7KrROiOV+jI/lMiQ5OGVj/MrN6MsSZQdAvQX3QV1aw/rYYtKNw/YbhEGaeqykKxqgpGKdxi6oT6F+XSPA9b+i/dlr7XsMK4b7MzUplIACdXLnTm/w0PmSiQoEgoF8CrHCT0Dl2YzTFvU4cDxmkUVv8Zl1WKH04fMUChw6WA6YcFGZaVtG08OVqXrwN/vUq6/eh3Vr1lAZbvbkKAz8uoAy20fQJSxgJuGpWTCMt+wQYhEV6NxUL262bvpGnDEEP42MoeuVkDR51JLTj/8VouqYlnJ0v33SObG4ej7P4W00f4TVeEKN51brRe//StMi8QKBgQDlZkQ/KixAfmUngEQw8NQvePCSPpTsDX0IAl5Qn5PRtMzbP8r1xyjTjb+o49zTLgcTo0TrARaIN7FItHcprTy+l2AenJc1wjKIaksWFx9Azo8ZEZBO1uFRRDXi/w15p8u/0RMI68q09jQfqSK4SGV4/xbgCHCGVv3vgnDQTZ0gmQKBgQDZ2+ZItY017gEl6DMto9CQxZJGOpFE7ojMQ3ORWA2JGZx3G01E5W9bvHT//M7W+sVDVgBaWTO14ojMuNcS+B1je/NUSGX0vztUk9L1HS3EEzlwxYNIx2a2SVIapUabJ7sO3+dsqTTncicJFKtPrDqVgRXRRYrKeVG1XUI1b2pp5wKBgQCcPHGAv51R84O7Sn2nA27QQkM+p0bQGkOsn8hSisynR8c6EBGQIStqIiGFymNMpQ2Gz20RzTTmY1/oD5kVFnrHp9t8HdRSdcfq5tHq4qaTgdsuDKtHNsxQh+9XgbRQxfpb0u5u5gCyDPjlE1GlRxFtPfb7cGQK6taaODHTfPjmCQKBgEZ5K/U5RYS8iQKKKoQJCd7LCpZNO9DgmL/60deidD51WnftDQHMdklmnTJxxTclx8oQd+zCDkg4D6ip4mjwehFEd2I8ST7y3W5uoz9HQRa8YUhpnB5e4or1DOoxrLVkFM6q/2HXGpYEBzyYwxHy1MCoETaxGESHGjdhA5nlgLbhAoGAH5Ri5L7XRmp9TJ8X5shj69trFGy7vFKLJaEXooOSau0gWfaMR9klxJ3avk20xWgHQSFQSUp1aTUY6toaeHejhqBedQrb/KCX865+scTW65+JnPVbMA0m+12EW1ysT6kFpyWmxl+aOmA/RrHTAfrth8lv7SPSw5V15JDWRqXB4Io=",
     "plaintext": "{\"rules\":[{\"action\":\"wire_transfer\",\"effect\":\"require_approval\",\"maxAmount\":1000}]}",
-    "blob": "v1.SFWu2nXkhn5MSzaIPvyz9+Uhlxp08Wmnw27VlfgzS+bgCp2JS5JehaYEnpaUXlm7ebvzjtOFPiyY1hhMlQzV9LXygXHuovYvcFjtJjREYJ1jbTVy7lp5NQ42opC0e8621fxtQAm/KgkPhfyW0ApBzKPkql2eWiM1L/AtJP9RWXDH4e19Y/FAq8ylxbJSN2l73wy9pmpXjC58TGExj2uwSmd2z2NoFYEnkjzF5D3buR5JH1UyN7O6lzZ/WM+0Mi6G77+UxeHwrzmP8gnfw8WiFxFq2Xh3GGrfJmltunKRQNHVmVmzKH0+4e4ZK/+8OzByMm8NyjmA9C43J0QKIunCLw==./BjHWUOsrDTvw6T4.zM47ohGNBsrIae284XYQiN1HnbFm5A3JhN3Yq9mxGxa+vs+5xWaEHBX+rRSot9whPsca38zi8n14GUIoolZHbnV2aX0VgMkoxlvdbvrfaXDzHA3xv8q5FMW62C+ZGs+2Ptmk"
+    "blob": "v1.q3Icx1feah2uVUrFJk+wOMTu9kEFAYYcSeKP/lLAVtJ4SyzczoDiiaIqUqn0L61idEp7vCoycPfNl+V090VjCjJk5leieCnfbHh+Owrs1b5oNH7arofK65CxRcHibEuIsB1vl3E9hKuMVPWCz4p6mCKkrkYmpkyCLePSbNdLQwgGwif2WJAu1XzhdrmhsSgPlhkBNdVDzmObt28b2oooS+PtBLa0XBa2uD+vSn6GSbqt1i91fJAjkfrUXktdJ8NGRPaK2NP50fHPYax/Tlj2ZP5/VUu5xR3kC9QBP6aLF3l3P5hYj8HnUDToqleW7V2kUNggkLv4gJ8/sfTG5xJazQ==.VLEl0fEKpwqHL7km.XP9zHzPHNoIWayv6ykpwwtaX+H3J9mlyVbMvGgXsV0asNmoj0us9WH8GZ+ROuh1jzgaeVbL2w3lXTxHigwdpwNjN2il28DM+9zUS4L25roHLguURcIKjaWmYNvPprQvGLnQS"
   }
 }
