@@ -192,10 +192,18 @@ fn field<'a>(row: &'a Value, key: &str) -> Value {
 ///
 /// DELIBERATELY different from lib.rs's `stable_stringify` in one way: NO portability refusal. The
 /// TS reference has no guard here, and a verifier that throws on a leaf it should merely fail to
-/// match is wrong — the caller needs "hash differs", not a crash. For numbers outside the portable
-/// range (|x| ≥ 1e16, tiny non-integer magnitudes) this falls back to serde's default formatting;
-/// cross-port bytes for such values are NOT guaranteed. Known residual — the producer-side
-/// portability guard is a tracked follow-up.
+/// match is wrong — the caller needs "hash differs", not a crash.
+///
+/// The producer refuses to COMMIT a number outside the portable range (`assertPortableJson` in
+/// packages/db), so an Intyga-issued leaf never carries one. This function still has to agree with
+/// the TS reference on values a third-party or legacy producer may have committed, and up to 1e21
+/// it does: `JSON.stringify` prints full digits for every finite double below that, so whole values
+/// fold to digit text here too. `f as i64` cannot be used for the whole range — it saturates above
+/// i64::MAX (≈9.2e18) — hence the fixed-precision format.
+///
+/// Residual, bounded and stated: at |x| ≥ 1e21 ES6 switches to exponent notation (`1e+21`) and
+/// serde prints digits, so bytes diverge there. No Intyga leaf can reach that (the producer guard),
+/// and no vector pins it.
 fn jcs_stringify(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),
@@ -214,8 +222,11 @@ fn jcs_stringify(value: &Value) -> String {
                 if f == 0.0 {
                     return "0".to_string(); // covers -0.0, exactly as JSON.stringify(-0) does
                 }
-                if f.fract() == 0.0 && f.abs() < 1e16 {
-                    return format!("{}", f as i64);
+                if f.fract() == 0.0 && f.abs() < 1e21 {
+                    // Every f64 at or above 2^53 is already integral, so this branch covers all of
+                    // [1e16, 1e21) too — the range where serde would print `1e20` and JSON.stringify
+                    // prints the digits. Fixed precision instead of `as i64`, which saturates.
+                    return format!("{:.0}", f);
                 }
             }
             n.to_string()
@@ -512,6 +523,25 @@ mod tests {
             serde_json::from_str::<Value>(r#"{"amount":100}"#).expect("parse metadata");
         assert_eq!(canonical_preimage(&row_f64), canonical_preimage(&row_int));
         assert!(canonical_preimage(&row_f64).contains(r#"{\"amount\":100}"#));
+    }
+
+    #[test]
+    fn large_whole_numbers_print_digits_like_json_stringify() {
+        // The producer refuses to commit these (packages/db assertPortableJson), but a third-party
+        // or legacy leaf can still carry them, and this port used to print serde's `1e20` where the
+        // TS reference prints the digits — a silent leaf-hash divergence that reads as tampering.
+        // 1e20 exceeds u64::MAX, so serde hands it over as f64 and the fold branch has to handle it.
+        for (json, expected) in [
+            (r#"{"n":10000000000000000}"#, r#"{"n":10000000000000000}"#), // 1e16
+            (r#"{"n":100000000000000000}"#, r#"{"n":100000000000000000}"#), // 1e17
+            (
+                r#"{"n":100000000000000000000}"#,
+                r#"{"n":100000000000000000000}"#,
+            ), // 1e20, past u64::MAX
+        ] {
+            let v: Value = serde_json::from_str(json).expect("parse");
+            assert_eq!(jcs_stringify(&v), expected, "input {json}");
+        }
     }
 
     #[test]

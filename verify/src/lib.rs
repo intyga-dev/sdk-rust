@@ -440,7 +440,11 @@ fn canonical_common(
     // The SET is the policy: sort so two identical allowlists written in different orders sign
     // identically. Clone first — mutating the caller's vector would be a surprising side effect.
     let mut aaguids = requirement.allowed_aaguids.clone();
-    aaguids.sort();
+    // UTF-16 code units, not Rust's native UTF-8 byte order — the same comparator the object
+    // keys use. The two differ only for non-BMP characters, which no AAGUID (hex UUID) or DID
+    // carries today, but a set sorted one way here and another in the TS reference produces
+    // different SIGNED BYTES, caught by nothing until a receipt fails elsewhere. DIV §4.3.3.
+    aaguids.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
     (
         serde_json::json!({ "did": requester.did, "attestation": attestation }),
         serde_json::json!({
@@ -510,7 +514,11 @@ pub fn canonical_delegation_payload(
 ) -> Result<String, String> {
     let (req, rq) = canonical_common(requester, requirement);
     let mut delegates = delegated_to.to_vec();
-    delegates.sort();
+    // UTF-16 code units, not Rust's native UTF-8 byte order — the same comparator the object
+    // keys use. The two differ only for non-BMP characters, which no AAGUID (hex UUID) or DID
+    // carries today, but a set sorted one way here and another in the TS reference produces
+    // different SIGNED BYTES, caught by nothing until a receipt fails elsewhere. DIV §4.3.3.
+    delegates.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
     stable_stringify(&serde_json::json!({
         "v": DIV_VERSION,
         "type": DIV_DELEGATION_TYPE,
@@ -1567,7 +1575,8 @@ mod tests {
             assert_eq!(got, case["expected"].as_str().unwrap_or_default());
             assert!(got.contains("\"type\":\"div-delegation\""));
             assert!(got.contains(
-                "\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-b\",\"did:intyga:sre-c\"]"
+                // UTF-16 code-unit order: U+1F600 before U+FFFD, where a UTF-8 byte sort puts it after.
+                "\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-\u{1F600}\",\"did:intyga:sre-\u{FFFD}\"]"
             ));
         }
     }

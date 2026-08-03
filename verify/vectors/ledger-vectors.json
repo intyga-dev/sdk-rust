@@ -1,11 +1,12 @@
 {
-  "generated": "2026-08-01T10:47:33.806Z",
-  "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by the Go/Rust/Python ledger verifiers. Regenerate ONLY on a deliberate format change.",
+  "generated": "2026-08-02T11:11:07.862Z",
+  "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by ALL FOUR ledger verifiers: TS (@intyga/verify), Go, Rust, and Python. Regenerate ONLY on a deliberate format change.",
   "domainTags": {
     "leaf": "0x00",
     "node": "0x01",
     "empty": "0x02",
-    "anchor": "0x03"
+    "anchor": "0x03",
+    "chain": "0x04"
   },
   "hashLeaf": [
     {
@@ -151,6 +152,38 @@
       },
       "canonical": "[\"9\",\"2026-07-24T12:00:00.000Z\",\"ACTION_APPROVED\",\"SUCCESS\",\"event 9\",\"{\\\"i\\\":3,\\\"z\\\":{\\\"a\\\":1,\\\"b\\\":2},\\\"😀\\\":\\\"emoji\\\",\\\"�\\\":\\\"replacement\\\"}\",null,null,null,null,null,false,\"tenant-1\",\"node-a\",null,null,null,\"10\"]",
       "leafHash": "15d4bb905671537428cc5c4cc10ac82373db671d1ff07968fb4297ad4c7f4d45"
+    },
+    {
+      "name": "metadata-portable-number-bounds",
+      "row": {
+        "seq": "7",
+        "tenantSeq": "8",
+        "createdAt": "2026-07-24T12:00:00.000Z",
+        "event": "ACTION_APPROVED",
+        "outcome": "SUCCESS",
+        "detail": "event 7",
+        "metadata": {
+          "safeInt": 9007199254740991,
+          "negSafeInt": -9007199254740991,
+          "e15": 1000000000000000,
+          "smallFloat": 0.0001,
+          "wholeFloat": 100,
+          "zero": 0
+        },
+        "signerDid": null,
+        "signerPublicKey": null,
+        "signedPayload": null,
+        "signature": null,
+        "sigAlg": null,
+        "isBillable": false,
+        "tenantId": "tenant-1",
+        "actorNodeId": "node-a",
+        "subjectNodeId": null,
+        "edgeId": null,
+        "challengeId": null
+      },
+      "canonical": "[\"7\",\"2026-07-24T12:00:00.000Z\",\"ACTION_APPROVED\",\"SUCCESS\",\"event 7\",\"{\\\"e15\\\":1000000000000000,\\\"negSafeInt\\\":-9007199254740991,\\\"safeInt\\\":9007199254740991,\\\"smallFloat\\\":0.0001,\\\"wholeFloat\\\":100,\\\"zero\\\":0}\",null,null,null,null,null,false,\"tenant-1\",\"node-a\",null,null,null,\"8\"]",
+      "leafHash": "e63504dc8a3ebc9006cd2eab64c0d3979040fa57afc275975e0432abe72f7bb8"
     }
   ],
   "inclusion": {
@@ -278,8 +311,8 @@
   },
   "signedAnchor": {
     "signerKey": {
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE3pPBpVE95YlbtNtI+bMpg3WBM0ybveOD4mjIBhhuDdti0VRK7b9BuRdjwJr4URXF3Ewpa6Joa1RTI6YNILUJJg==",
-      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgMcA9YxfYMYrjJ7ReL381Utum2hGhve2hUJdR1Mk8PMOhRANCAATek8GlUT3liVu020j5symDdYEzTJu944PiaMgGGG4N22LRVErtv0G5F2PAmvhRFcXcTClromhrVFMjpg0gtQkm"
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcgDU9gGDb54uAiPyVM2he6jILLh42AIaVsu8J0+wWJE7Yq3MYvH6+ILxNKGapwxUptfe1gex4Eg9HxAmJxqvfw==",
+      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgyrRBrbupK9mBekINS3vT8srQUXh4Qq7Q9d+LvjDoRaihRANCAARyANT2AYNvni4CI/JUzaF7qMgsuHjYAhpWy7wnT7BYkTtircxi8fr4gvE0oZqnDFSm197WB7HgSD0fECYnGq9/"
     },
     "cases": [
       {
@@ -290,7 +323,20 @@
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEYCIQDtCootF1HAtRlWSdNBKg6oZFHNIbkxGsvFNrCpDPZLkQIhAIj1kQ8nhdiV1lCcbHaPOCzdFIa8UpLY9jfosYbZXjXp"
+          "signature": "MEUCIAdZDHgpSUNzvR08Bb9OPgNdsWVCJrUrP+/c5wjOi/ZCAiEA516sJRZWiK6noU8pkXecKK+ouv9SYF9U8cL/o6Xb8+E="
+        },
+        "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
+        "expectOk": true
+      },
+      {
+        "name": "es256-raw-p1363-anchor-signature-verifies",
+        "anchor": {
+          "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53",
+          "timestamp": "2026-07-24T23:59:00.000Z",
+          "issuer": "https://transparency.example.org",
+          "algorithm": "ES256",
+          "keyId": "vector-anchor-key-1",
+          "signature": "ObQsIPX5RCayGdl5vElLtBZ/b8zkhRA/ABuXIOoRYd9NbnVAXaZ9kI7ipUTqPf5Uhw13x92ulWsjtynqoWuAUA=="
         },
         "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
         "expectOk": true
@@ -303,7 +349,7 @@
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEYCIQDtCootF1HAtRlWSdNBKg6oZFHNIbkxGsvFNrCpDPZLkQIhAIj1kQ8nhdiV1lCcbHaPOCzdFIa8UpLY9jfosYbZXjXp"
+          "signature": "MEUCIAdZDHgpSUNzvR08Bb9OPgNdsWVCJrUrP+/c5wjOi/ZCAiEA516sJRZWiK6noU8pkXecKK+ouv9SYF9U8cL/o6Xb8+E="
         },
         "expectOk": false
       }
