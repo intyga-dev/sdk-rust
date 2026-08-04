@@ -2,8 +2,13 @@
 name = "intyga-sdk"
 version = "0.1.0"
 edition = "2021"
-description = "Rust client for Intyga: request a challenge, a human approves on their wallet, poll until resolved"
+description = "Rust client for Intyga: request a challenge, a human approves with a passkey or security key, poll until resolved"
 license = "Apache-2.0"
+repository = "https://github.com/intyga-dev/sdk-rust"
+homepage = "https://www.intyga.com"
+readme = "README.md"
+keywords = ["authorization", "approval", "webauthn", "passkey", "audit"]
+categories = ["authentication", "api-bindings"]
 
 [features]
 default = ["ureq-transport"]
@@ -13,6 +18,8 @@ ureq-transport = ["dep:ureq"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# Offline receipt verification is re-exported so callers can verify what was signed without a second crate.
-intyga-verify = { path = "verify" }
+# Offline receipt verification is re-exported so callers can verify what was signed without a second
+# crate. `version` + `path` together: local builds use the sibling directory, while `cargo publish`
+# (which forbids bare path dependencies) resolves the published intyga-verify at this version.
+intyga-verify = { version = "0.1.0", path = "verify" }
 ureq = { version = "2", optional = true }

@@ -1,6 +1,6 @@
-//! Rust client for Intyga. The primitive is uniform: request a challenge → a human approves on their
-//! wallet → poll until resolved. It works for AI agents, humans, and any backend service; the only
-//! difference is which API key/token you hold.
+//! Rust client for Intyga. The primitive is uniform: request a challenge → a human approves with a
+//! passkey or security key → poll until resolved. It works for AI agents, humans, and any backend
+//! service; the only difference is which API key/token you hold.
 //!
 //! Offline receipt verification lives in the standalone `intyga-verify` crate and is re-exported here so
 //! a relying party can re-verify what was signed without a second dependency.
@@ -11,9 +11,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 // Re-export the offline verifier so SDK consumers can check receipts in-process.
+// ApproverTrustAnchor is part of this set deliberately: `Expected.approvers` is a required field of
+// that type, so without the re-export no SDK consumer could construct a verification call at all
+// without adding the verifier as a second direct dependency.
 pub use intyga_verify::{
-    verify_approval_receipt, verify_approval_receipt_with_options, ApprovalReceipt, Expected,
-    VerifyOptions,
+    verify_approval_receipt, verify_approval_receipt_with_options, ApprovalReceipt,
+    ApproverTrustAnchor, Expected, VerifyOptions,
 };
 
 /// The lifecycle state of a challenge.
@@ -48,7 +51,7 @@ pub struct AuthorizeOptions {
     pub target: Option<String>,
     /// Action identifier, e.g. "wire_transfer". Bound into the signed payload.
     pub action_type: Option<String>,
-    /// The exact structured variables that will execute — displayed in the wallet AND signed.
+    /// The exact structured variables that will execute — displayed to the approver AND signed.
     pub params: Option<Value>,
     /// Optional override for the server's default challenge TTL, in seconds.
     pub timeout_seconds: Option<u64>,
@@ -259,7 +262,7 @@ impl<T: Transport> Client<T> {
     }
 
     /// The core zero-trust gate: call immediately before a high-risk action. It creates the challenge and
-    /// blocks until the human approves/denies on their wallet (or it times out).
+    /// blocks until the human approves/denies with their passkey (or it times out).
     pub fn require_approval(
         &mut self,
         action_description: &str,

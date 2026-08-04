@@ -2,8 +2,15 @@
 name = "intyga-verify"
 version = "0.1.0"
 edition = "2021"
-description = "Zero-dependency offline receipt verifier for Intyga witness receipts"
+# "Offline" and "no Intyga secret" are the honest claims. NOT "zero-dependency": this crate
+# declares six crates (serde, p256, …) — the zero-dependency verifier is the TypeScript one.
+description = "Offline verifier for Intyga approval receipts (ES256 + WebAuthn) — no Intyga secret, no network"
 license = "Apache-2.0"
+repository = "https://github.com/intyga-dev/verify-rust"
+homepage = "https://www.intyga.com"
+readme = "README.md"
+keywords = ["verification", "receipts", "webauthn", "es256", "audit"]
+categories = ["authentication", "cryptography"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
