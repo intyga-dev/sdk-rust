@@ -57,6 +57,9 @@ pub struct RequesterAttestation {
 /// checkability differs per field: `required_approvals` and `requester_cannot_approve` are fully
 /// verifiable; `require_hardware_key` only partially (an assertion proves WebAuthn, not the
 /// authenticator model); `allowed_aaguids` not at all (the AAGUID is registration data).
+/// `signer_class` is partially checkable: a WEBAUTHN witness's UV flag corroborates a human
+/// ceremony, an ES256 witness carries no class evidence — but the verifier's own rule is absolute:
+/// refuse any value it does not recognize (`"human"` is the only class defined today, DIV §4.3.2).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalRequirement {
@@ -65,6 +68,8 @@ pub struct ApprovalRequirement {
     #[serde(default)]
     pub allowed_aaguids: Vec<String>,
     pub requester_cannot_approve: bool,
+    #[serde(default)]
+    pub signer_class: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -452,6 +457,7 @@ fn canonical_common(
             "requireHardwareKey": requirement.require_hardware_key,
             "allowedAaguids": aaguids,
             "requesterCannotApprove": requirement.requester_cannot_approve,
+            "signerClass": requirement.signer_class,
         }),
     )
 }
@@ -640,6 +646,23 @@ pub fn verify_approval_receipt(
     verify_approval_receipt_with_options(receipt, expected, &VerifyOptions::default())
 }
 
+/// Validate `requirement.signerClass` out of the signed bytes (DIV §4.3.2). `"human"` is the only
+/// class defined today. FAIL CLOSED both ways: an absent class predates (or dropped) the field, and
+/// an unrecognized class must never verify as if it were human-approved — that is the entire point
+/// of putting the class in the signed bytes.
+fn check_signer_class(requirement: &ApprovalRequirement) -> Result<(), String> {
+    if requirement.signer_class.is_empty() {
+        return Err("the signed requirement is missing signerClass (DIV §4.3.2)".to_string());
+    }
+    if requirement.signer_class != "human" {
+        return Err(format!(
+            "the signed requirement declares signerClass \"{}\", which this verifier does not recognize — refusing rather than treating it as human-approved (DIV §4.3.2)",
+            requirement.signer_class
+        ));
+    }
+    Ok(())
+}
+
 /// Verify an ApprovalReceipt offline, with relying-party context.
 ///
 /// Recomputes the canonical payload from the caller's own params, confirms it byte-matches what
@@ -711,6 +734,7 @@ pub fn verify_approval_receipt_with_options(
             .and_then(|v| v.get("requirement").cloned())
             .and_then(|v| serde_json::from_value(v).ok())
             .ok_or("receipt payload is missing the signed approval requirement")?;
+    check_signer_class(&requirement)?;
 
     // Offline proofs carry `challengedAt` so the validity WINDOW can be bounded here, not merely at mint.
     let mut challenged_at = String::new();
@@ -1056,6 +1080,7 @@ pub fn verify_delegation(
         .cloned()
         .and_then(|v| serde_json::from_value(v).ok())
         .ok_or("delegation payload is missing the signed approval requirement")?;
+    check_signer_class(&requirement)?;
     if expected.target.is_empty() {
         return Err("expected.target is required — it must be YOUR target identifier, asserted independently of the delegation (DIV Target Isolation)".to_string());
     }
@@ -1340,6 +1365,53 @@ mod tests {
         assert!(verify_approval_receipt(&receipt, &expected).is_err());
     }
 
+    /// DIV §4.3.2 / §5-step-3a: the signerClass registry fails closed. An unrecognized class must
+    /// never verify as if it were human-approved, and a payload with no class predates the field
+    /// and cannot be verified by this version. Both receipts are GENUINELY signed, which pins that
+    /// the refusal is the registry rule rather than a broken signature.
+    #[test]
+    fn test_signer_class_registry_fails_closed() {
+        for (class, want) in [
+            ("delegated-agent", "does not recognize"),
+            ("", "missing signerClass"),
+        ] {
+            let requester = RequesterIdentity {
+                did: "did:intyga:service:deploy-pipeline".to_string(),
+                attestation: None,
+            };
+            let params = json!({ "environment": "staging" });
+            let requirement = ApprovalRequirement {
+                signer_class: class.to_string(),
+                ..default_requirement()
+            };
+            let canonical = canonical_intent_payload(
+                "prod-db-cluster-01",
+                "deleteDatabase",
+                "Delete staging database",
+                &params,
+                &requester,
+                &requirement,
+                "c_8f91a2",
+                "2999-01-01T00:00:00.000Z",
+            )
+            .expect("canonicalize fixture payload");
+            let sk = test_signing_key();
+            let sig: Signature = sk.sign(canonical.as_bytes());
+            let spki = sk.verifying_key().to_public_key_der().expect("encode SPKI");
+            let (mut receipt, mut expected) = signed_receipt();
+            receipt.canonical_payload = canonical;
+            receipt.signature = Some(STANDARD.encode(sig.to_der().as_bytes()));
+            expected.approvers =
+                ApproverTrustAnchor::PublicKeys(vec![STANDARD.encode(spki.as_bytes())]);
+            let err = verify_approval_receipt(&receipt, &expected)
+                .expect_err(&format!("signerClass {class:?} must be refused"));
+            assert!(
+                err.contains(want),
+                "signerClass {class:?}: refused for the wrong reason: {err}"
+            );
+        }
+    }
+
     #[test]
     fn test_valid_signature_wrong_key_is_rejected() {
         // A well-formed signature that simply was not made over this payload:
@@ -1466,6 +1538,10 @@ mod tests {
             requester_cannot_approve: i["requirement"]["requesterCannotApprove"]
                 .as_bool()
                 .unwrap_or(false),
+            signer_class: i["requirement"]["signerClass"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
         }
     }
 
@@ -1766,6 +1842,7 @@ mod tests {
             require_hardware_key: false,
             allowed_aaguids: vec![],
             requester_cannot_approve: false,
+            signer_class: "human".to_string(),
         }
     }
 
@@ -1786,6 +1863,7 @@ mod tests {
             require_hardware_key: true,
             allowed_aaguids: vec!["b-aaguid".to_string(), "a-aaguid".to_string()],
             requester_cannot_approve: true,
+            signer_class: "human".to_string(),
         };
         let got = canonical_intent_payload(
             "prod-db-cluster-01",
@@ -1800,7 +1878,7 @@ mod tests {
         .expect("canonicalize");
         // Strict RFC 8785 JCS: every key sorted; type/version last. Byte-for-byte the string the TS
         // reference implementation (@intyga/mcp-schemas) emits for the same input.
-        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
+        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2,"signerClass":"human"},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
         assert_eq!(got, expected);
     }
 
