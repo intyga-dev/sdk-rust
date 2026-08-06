@@ -84,6 +84,7 @@ let client = Client::with_transport(opts, MyTransport);
 - TypeScript — [`@intyga/sdk`](https://github.com/intyga-dev/sdk)
 - Python — [`sdk-python`](https://github.com/intyga-dev/sdk-python)
 - Go — [`sdk-go`](https://github.com/intyga-dev/sdk-go)
+- Java — [`sdk-java`](https://github.com/intyga-dev/sdk-java)
 
 ## License
 
