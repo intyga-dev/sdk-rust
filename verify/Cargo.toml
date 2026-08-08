@@ -1,6 +1,6 @@
 [package]
 name = "intyga-verify"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 # "Offline" and "no Intyga secret" are the honest claims. NOT "zero-dependency": this crate
 # declares six crates (serde, p256, …) — the zero-dependency verifier is the TypeScript one.

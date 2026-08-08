@@ -8,7 +8,7 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
 - Re-export `ApproverTrustAnchor` alongside `Expected` — `Expected.approvers` is a required field
   of that type, so verification was previously unconstructable from this crate's re-exports alone.
 
-## [0.1.0]
+## [1.0.0]
 
 Initial public release.
 
