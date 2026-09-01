@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-02T11:11:07.862Z",
-  "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by ALL FOUR ledger verifiers: TS (@intyga/verify), Go, Rust, and Python. Regenerate ONLY on a deliberate format change.",
+  "generated": "2026-08-15T13:34:31.652Z",
+  "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by ALL FIVE ledger verifiers: TS (@intyga/verify), Go, Rust, Java, and Python. Regenerate ONLY on a deliberate format change.",
   "domainTags": {
     "leaf": "0x00",
     "node": "0x01",
@@ -279,6 +279,48 @@
       "expected": false
     },
     {
+      "name": "padding-forgery-revived-by-uppercased-sibling",
+      "reason": "uppercase hex decodes to the same 32 bytes, so the root still recomputes, but the self-pairing comparison is on the string and no longer matches. Only DEWP §4.4's 64-character lowercase hex rule refuses this path into padding",
+      "leaf": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
+      "proof": [
+        {
+          "siblingHash": "B563A5E69628743929EDDEC0CCFEB0745C39577E12A72E84915EDD6633CB97F2",
+          "siblingPosition": "LEFT"
+        },
+        {
+          "siblingHash": "ed692f01f7f6c46930d7ad8f9adad3f9f38b7379cf6a8d2f399a0ba1e914fe25",
+          "siblingPosition": "LEFT"
+        }
+      ],
+      "root": "9725a8cf4154eb2b9fc5722dc2e65536eb09eba37150859f97132466815de2ae",
+      "bounds": {
+        "index": 3,
+        "leafCount": 4
+      },
+      "expected": false
+    },
+    {
+      "name": "uppercased-root-refused",
+      "reason": "the path itself is honest, so this pins the ENCODING rule rather than the tree: digests are 64-character lowercase hex (DEWP §4.4), and a verifier that case-folds its inputs to be lenient — the obvious way to 'fix' this case — reopens the uppercased-sibling forgery above",
+      "leaf": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
+      "proof": [
+        {
+          "siblingHash": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
+          "siblingPosition": "RIGHT"
+        },
+        {
+          "siblingHash": "ed692f01f7f6c46930d7ad8f9adad3f9f38b7379cf6a8d2f399a0ba1e914fe25",
+          "siblingPosition": "LEFT"
+        }
+      ],
+      "root": "9725A8CF4154EB2B9FC5722DC2E65536EB09EBA37150859F97132466815DE2AE",
+      "bounds": {
+        "index": 2,
+        "leafCount": 3
+      },
+      "expected": false
+    },
+    {
       "name": "honest-unpaired-tail-still-verifies",
       "reason": "index 2 of 3 IS the unpaired end, so self-pairing is legitimate there",
       "leaf": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
@@ -311,8 +353,8 @@
   },
   "signedAnchor": {
     "signerKey": {
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcgDU9gGDb54uAiPyVM2he6jILLh42AIaVsu8J0+wWJE7Yq3MYvH6+ILxNKGapwxUptfe1gex4Eg9HxAmJxqvfw==",
-      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgyrRBrbupK9mBekINS3vT8srQUXh4Qq7Q9d+LvjDoRaihRANCAARyANT2AYNvni4CI/JUzaF7qMgsuHjYAhpWy7wnT7BYkTtircxi8fr4gvE0oZqnDFSm197WB7HgSD0fECYnGq9/"
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEd//L/UH89aRhaegBz5HUTqxFb/BADH6HxBtR5Ut/gGJSf7Fh8Z5997gT4p76wSZWvVrWYRC9HJjXEd5WmisROw==",
+      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgnxuGELHLYmmfBXW/m8XTqI3mt1Yr4bejRHrLvS0siiChRANCAAR3/8v9Qfz1pGFp6AHPkdROrEVv8EAMfofEG1HlS3+AYlJ/sWHxnn33uBPinvrBJla9WtZhEL0cmNcR3laaKxE7"
     },
     "cases": [
       {
@@ -323,7 +365,7 @@
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEUCIAdZDHgpSUNzvR08Bb9OPgNdsWVCJrUrP+/c5wjOi/ZCAiEA516sJRZWiK6noU8pkXecKK+ouv9SYF9U8cL/o6Xb8+E="
+          "signature": "MEUCIQCM2yA+6y18IJhqNwb0/IqcX1kX2T4oBD9J77nylAwzdwIgSzHDpM3OKKyy4kggGJH6dL27GBVxJpc/ykwFgyjvKSI="
         },
         "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
         "expectOk": true
@@ -336,7 +378,7 @@
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
           "keyId": "vector-anchor-key-1",
-          "signature": "ObQsIPX5RCayGdl5vElLtBZ/b8zkhRA/ABuXIOoRYd9NbnVAXaZ9kI7ipUTqPf5Uhw13x92ulWsjtynqoWuAUA=="
+          "signature": "DR5f6sLGAaN697jGIQEOcUZzSSce/it49ztWWob6ndNWYYwFF3Ch+ZComgH49IVDPnyC+x6egnrHoS4FxzrU/g=="
         },
         "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
         "expectOk": true
@@ -349,7 +391,7 @@
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEUCIAdZDHgpSUNzvR08Bb9OPgNdsWVCJrUrP+/c5wjOi/ZCAiEA516sJRZWiK6noU8pkXecKK+ouv9SYF9U8cL/o6Xb8+E="
+          "signature": "MEUCIQCM2yA+6y18IJhqNwb0/IqcX1kX2T4oBD9J77nylAwzdwIgSzHDpM3OKKyy4kggGJH6dL27GBVxJpc/ykwFgyjvKSI="
         },
         "expectOk": false
       }

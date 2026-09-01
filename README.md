@@ -72,6 +72,8 @@ if !c.ok {
 }
 ```
 
+With `client_id`/`client_secret`, the client exchanges them for a bearer token and re-exchanges automatically shortly before the `expires_in` the gateway reports (and once more on a `401`), so a long-lived client or a long `require_approval` wait never outlives its token. A `token` you pass yourself is used as-is and never refreshed.
+
 ## Bring your own HTTP client
 
 The client is generic over a pluggable `Transport`. `Client::new(..)` uses a built-in blocking `ureq` transport (default feature `ureq-transport`); disable it and implement `Transport` to route requests through your own async/instrumented HTTP stack:

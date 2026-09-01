@@ -196,14 +196,17 @@ fn field<'a>(row: &'a Value, key: &str) -> Value {
 ///
 /// The producer refuses to COMMIT a number outside the portable range (`assertPortableJson` in
 /// packages/db), so an Intyga-issued leaf never carries one. This function still has to agree with
-/// the TS reference on values a third-party or legacy producer may have committed, and up to 1e21
-/// it does: `JSON.stringify` prints full digits for every finite double below that, so whole values
-/// fold to digit text here too. `f as i64` cannot be used for the whole range — it saturates above
-/// i64::MAX (≈9.2e18) — hence the fixed-precision format.
+/// the TS reference on values a third-party or legacy producer may have committed. Below 2^53 it
+/// does exactly: every integral double's exact expansion IS the shortest round trip. `f as i64`
+/// cannot be used for the whole range — it saturates above i64::MAX (≈9.2e18) — hence the
+/// fixed-precision format.
 ///
-/// Residual, bounded and stated: at |x| ≥ 1e21 ES6 switches to exponent notation (`1e+21`) and
-/// serde prints digits, so bytes diverge there. No Intyga leaf can reach that (the producer guard),
-/// and no vector pins it.
+/// Residuals, bounded and stated: in (2^53, 1e21) `{:.0}` prints the double's EXACT decimal
+/// expansion while ES prints the SHORTEST round-trip digits, so bytes can diverge (2^60 →
+/// "1152921504606846976" here, "1152921504606847000" in ES — powers of ten agree, most other
+/// values do not); and at |x| ≥ 1e21 ES switches to exponent notation (`1e+21`) where serde prints
+/// digits. Both live outside the portable range: no Intyga leaf can reach them (the producer
+/// guard), no vector pins them, and a mismatch reports as an ordinary content mismatch.
 fn jcs_stringify(value: &Value) -> String {
     match value {
         Value::Null => "null".to_string(),
@@ -224,8 +227,10 @@ fn jcs_stringify(value: &Value) -> String {
                 }
                 if f.fract() == 0.0 && f.abs() < 1e21 {
                     // Every f64 at or above 2^53 is already integral, so this branch covers all of
-                    // [1e16, 1e21) too — the range where serde would print `1e20` and JSON.stringify
-                    // prints the digits. Fixed precision instead of `as i64`, which saturates.
+                    // [1e16, 1e21) too — the range where serde would print `1e20` in exponent
+                    // notation. Fixed precision instead of `as i64`, which saturates. NOTE: above
+                    // 2^53 this prints the EXACT expansion, not ES's shortest round trip — see the
+                    // doc comment's residuals.
                     return format!("{:.0}", f);
                 }
             }

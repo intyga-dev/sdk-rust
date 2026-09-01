@@ -1,6 +1,6 @@
 {
-  "generated": "2026-08-04T19:20:23.125Z",
-  "note": "Cross-language wire-contract vectors. Consumed by ALL FIVE ports: packages/mcp-schemas and packages/verify tests (TS), verify-go, verify-rust, and sdk-python. Regenerate ONLY on a deliberate format change.",
+  "generated": "2026-08-27T14:17:54.793Z",
+  "note": "Cross-language wire-contract vectors. Consumed by ALL SIX ports: packages/mcp-schemas and packages/verify tests (TS), verify-go, verify-rust, verify-java, and sdk-python — EXCEPT four TS-only sections a Core Profile verifier has no consumer for, deliberately: `agentAuthorityPayloads` (DIV §5b is TS-only; the ports refuse the `div-agent-authority` type rather than building its payload, and the `receipts` case named agent-authority-refused-by-approval-verifier is where they pin that), `denialPayloads` (§4.3.3 denial witnesses are DEWP ledger entries checked by leaf recomputation, not Proof Envelopes), `documentPayloads` (see its own note) and `platformIntentPayloads` (DIV §5c is TS-only; the ports refuse the `div-platform-intent` type until they implement it — see its note). Regenerate ONLY on a deliberate format change.",
   "stableStringify": [
     {
       "name": "null",
@@ -670,6 +670,68 @@
       "expected": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-agent-authority\",\"v\":1}"
     }
   ],
+  "denialPayloads": [
+    {
+      "name": "intent-0",
+      "approval": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification-denial\",\"v\":1}"
+    },
+    {
+      "name": "intent-1",
+      "approval": "{\"actionType\":\"backend.action\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-db-cluster-01\",\"type\":\"div-intent-verification\",\"v\":1}",
+      "expected": "{\"actionType\":\"backend.action\",\"decision\":\"deny\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-db-cluster-01\",\"type\":\"div-intent-verification-denial\",\"v\":1}"
+    },
+    {
+      "name": "intent-2",
+      "approval": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"params\":{\"amount\":250000},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"target\":\"prod-treasury\",\"type\":\"div-intent-verification\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"params\":{\"amount\":250000},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"target\":\"prod-treasury\",\"type\":\"div-intent-verification-denial\",\"v\":1}"
+    },
+    {
+      "name": "intent-3",
+      "approval": "{\"actionType\":\"payments.wire\",\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"params\":{\"amount\":1},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-treasury\",\"type\":\"div-intent-verification\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"params\":{\"amount\":1},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-treasury\",\"type\":\"div-intent-verification-denial\",\"v\":1}"
+    },
+    {
+      "name": "delegation-0",
+      "approval": "{\"actionType\":\"payments.wire\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-delegation\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-delegation-denial\",\"v\":1}"
+    },
+    {
+      "name": "delegation-1",
+      "approval": "{\"actionType\":\"backend.action\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-delegation\",\"v\":1}",
+      "expected": "{\"actionType\":\"backend.action\",\"decision\":\"deny\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-delegation-denial\",\"v\":1}"
+    },
+    {
+      "name": "delegation-2",
+      "approval": "{\"actionType\":\"payments.wire\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"params\":{\"amount\":250000},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-delegation\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"params\":{\"amount\":250000},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-delegation-denial\",\"v\":1}"
+    },
+    {
+      "name": "delegation-3",
+      "approval": "{\"actionType\":\"payments.wire\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"params\":{\"amount\":1},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-delegation\",\"v\":1}",
+      "expected": "{\"actionType\":\"payments.wire\",\"decision\":\"deny\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"params\":{\"amount\":1},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-delegation-denial\",\"v\":1}"
+    },
+    {
+      "name": "agentAuthority-0",
+      "approval": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-agent-authority\",\"v\":1}",
+      "expected": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"decision\":\"deny\",\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-agent-authority-denial\",\"v\":1}"
+    },
+    {
+      "name": "agentAuthority-1",
+      "approval": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-agent-authority\",\"v\":1}",
+      "expected": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"decision\":\"deny\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-agent-authority-denial\",\"v\":1}"
+    },
+    {
+      "name": "agentAuthority-2",
+      "approval": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-agent-authority\",\"v\":1}",
+      "expected": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"decision\":\"deny\",\"display\":\"Wire $250,000 — dual control\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-333333333333\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"d8522d9f-575b-4866-88a9-ba99fa02f35b\"],\"requesterCannotApprove\":true,\"requireHardwareKey\":true,\"requiredApprovals\":3,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-agent-authority-denial\",\"v\":1}"
+    },
+    {
+      "name": "agentAuthority-3",
+      "approval": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-agent-authority\",\"v\":1}",
+      "expected": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"decision\":\"deny\",\"display\":\"Set ordering is UTF-16, not UTF-8 or code point\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"11111111-2222-4000-8000-444444444444\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent-treasury\"},\"requirement\":{\"allowedAaguids\":[\"cb69481e-8ff7-4039-93ec-0a2729a154a8\",\"😀\",\"�\"],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-treasury\",\"type\":\"div-agent-authority-denial\",\"v\":1}"
+    }
+  ],
   "actionPayloads": [
     {
       "input": {
@@ -733,8 +795,8 @@
     }
   ],
   "signerKey": {
-    "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-    "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQghtAhQ8z8XsE+RoO2RGtPRpbggRNcy4X9+NMmdPo8Mn2hRANCAASsdqbfEIqzI1PoGDWLEFsjFP7gIyLaNJr8+U3P9FmGwN0u7dTjhwVobtvRso3KO12ZLwrByTGflfq6S/bSnNzn"
+    "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+    "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgx0Jq8zJ5ZuW1W4vhX/n7YAFd0xBDP5VND56tP0KxaqqhRANCAATbJfe7WO8Zyr3WbwW1xj/XxYluukqr5B8dnPnL69JlB41/TreP8uD1Tk6G5w1g9t4lMz4cEh1ER6aCjFv5FmY8"
   },
   "receipts": [
     {
@@ -764,8 +826,8 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "YwjbdlHWB/0oLWBBZZ/HBLFMOcYBbSXELiH0Pg7G3fTf7FEbKB1LubiAn5elFH+jlO9h88OlTd8pRsEmnDAkkg==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "ll83mOwydhsZvakni6esI8JYzdE32xHnvWJ5yfbGi8Ei3bLtsc1WaItLt1qXBbj8BtOgd1eqDNJcOGhYjYcoFQ==",
         "sigAlg": "ES256",
         "verificationCode": "DFE0-27B7"
       },
@@ -784,8 +846,8 @@
           "attestation": null
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "MEUCIAMI7dsU9A0LzfSV3uuINCHQw/zP0q11Tie0jzfFvu2kAiEAtLlMb5lHhCcODIsJ9ODTZssXkOqvZ6KXo6rGMQK4gdY=",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "MEQCIEdpYGNeBikaQ2qI/L1Zh07C3ni/T3TvN6O5HwWEUT6bAiBrywoduOKZQ2YeOkeSimhqtFjsuKL+qwtkFkBnGk2jgg==",
         "sigAlg": "ES256",
         "verificationCode": "7B2E-8850"
       },
@@ -818,8 +880,8 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "msgiR8yRgzH9EQswimFzZhEWt2T+gx966ey2usT2P6NIqDWuwTN+ENQvGFkbCXm+ZOqNTb28L9etxESwPZIxyg==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "ULU6YOT1QPV0zQivSxszo7VhnZZ0YhK075zQ3aENya/Ccd0yuiYo8Sf+x8HhvNEgvPxomKOf9ZYuX+1Ti8SvrA==",
         "sigAlg": "ES256",
         "verificationCode": "DFE0-27B7"
       },
@@ -878,10 +940,166 @@
           }
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "CbTqQz6whR8DI2ZU2MzkF8IvKrNwsl6BwX/ROkJFQAzC36S2Aw8580U0MLxNH8l+UycQdWqKAFs9z3xFM3GB4w==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "9HGpEWpkzsrVXnX2KjKKjC3L9ZnA3uziCozpDNj+KxtYmb67D8GQ55FSnqhqifFvZfD7NJle3etzoaDIqoIZ7g==",
         "sigAlg": "ES256",
         "verificationCode": "DFE0-27B7"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "delegation-refused-by-approval-verifier",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"payments.wire\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-delegation\",\"v\":1}",
+        "target": "prod-payments-gateway",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:intyga:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "anSPaC3gpIgjAEPKwtsZhivthTt2JwjwH8500vHG7xo/FltOjhrkJqiIndDwQ93Wn3pHUQ3kb1CES8XemnS04w==",
+        "sigAlg": "ES256",
+        "verificationCode": "7108-2C47"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "agent-authority-refused-by-approval-verifier",
+      "receipt": {
+        "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\",\"😀\",\"�\"],\"agent\":{\"did\":\"did:intyga:agent-under-authority\"},\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"9c3f7b2a-0000-4000-8000-abcdef123456\",\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"sealedAt\":\"2026-07-01T00:00:00.000Z\",\"target\":\"prod-payments-gateway\",\"type\":\"div-agent-authority\",\"v\":1}",
+        "target": "prod-payments-gateway",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:intyga:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "IkYesdaVQ8u2MUBauZLaz/1adOQY0ljy9SnWEDw+LsFtcJ50g8+S+Wuk9mhjL2HtuWUZynZfkDe5CLWZAwVMrg==",
+        "sigAlg": "ES256",
+        "verificationCode": "F381-3A4C"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "platform-intent-refused-by-approval-verifier",
+      "receipt": {
+        "canonicalPayload": "{\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"hashAlg\":\"SHA-256\",\"nonce\":\"9c3f7b2a-5c02-4000-8000-abcdef123456\",\"payloadHash\":\"9e01d89552b91c353344f48ec2307782eef4e5637a3d67e9f3a173b386e6bb21\",\"rpId\":\"platform.example\",\"signedAt\":\"2026-08-27T00:00:00.000Z\",\"subject\":{\"externalId\":\"user-123\"},\"type\":\"div-platform-intent\",\"v\":1}",
+        "target": "prod-payments-gateway",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:intyga:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "Lrx6cNwTjkL6HPz2Vnb1x0BpE+I/jDY5V2AypLN4/+bT3DF4tDYhH9XLvwH2Kf0qBl1Pmbu1pu9p2RJOa/NW6w==",
+        "sigAlg": "ES256",
+        "verificationCode": "8744-3D78"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "zero-required-approvals-refused",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"backend.action\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"cccc3333-dddd-4000-8000-zeroquorum01\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":0,\"signerClass\":\"human\"},\"target\":\"prod-db-cluster-01\",\"type\":\"div-intent-verification\",\"v\":1}",
+        "target": "prod-db-cluster-01",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:intyga:key:abc",
+          "attestation": null
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "jBjmc1MwUFw+NjHa5/o+ahwE+0N2yfPwtBVgZviwF6yyiTGYkB5VaVjJF3yhIPJOaFLVz+oVPjbqJQyfIbo2kg==",
+        "sigAlg": "ES256",
+        "verificationCode": "719B-BC4A"
+      },
+      "expectOk": false
+    },
+    {
+      "name": "unknown-signer-class-refused",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"payments.wire\",\"display\":\"Wire $9,000 to \\\"ACME-123\\\" — final\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"cccc3333-dddd-4000-8000-signerclass1\",\"params\":{\"amount\":9000,\"meta\":{\"ok\":true,\"tags\":[\"urgent\",\"q3\"]},\"vendor\":\"ACME-123\"},\"requester\":{\"attestation\":{\"issuer\":\"https://accounts.google.com\",\"method\":\"gcp-workload-identity\",\"subject\":\"svc@proj.iam.gserviceaccount.com\"},\"did\":\"did:intyga:agent-007\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"delegated-agent\"},\"target\":\"prod-payments-gateway\",\"type\":\"div-intent-verification\",\"v\":1}",
+        "target": "prod-payments-gateway",
+        "actionType": "payments.wire",
+        "actionDescription": "Wire $9,000 to \"ACME-123\" — final",
+        "params": {
+          "amount": 9000,
+          "vendor": "ACME-123",
+          "meta": {
+            "tags": [
+              "urgent",
+              "q3"
+            ],
+            "ok": true
+          }
+        },
+        "requester": {
+          "did": "did:intyga:agent-007",
+          "attestation": {
+            "method": "gcp-workload-identity",
+            "issuer": "https://accounts.google.com",
+            "subject": "svc@proj.iam.gserviceaccount.com"
+          }
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "fQOYN2Q9Zz2dpOtn8uCoZnpjIP2w7RtWTJKTBwV0zQFupi9JNFehGsPztuttIbNxZJJg7qZlTQu2JzeFPFGrxQ==",
+        "sigAlg": "ES256",
+        "verificationCode": "5B2E-321C"
       },
       "expectOk": false
     }
@@ -891,20 +1109,20 @@
       {
         "did": "did:intyga:approver-alice",
         "keys": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXqnlIre03zORl0rMgawpwSjCKyW4pKd3gQ8GxuDMpVcutsiC4xPUPkzXob5RdpgLqLVZZUn5aRnVmjJxC+yUHw=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaWVY3unfkPD8Bvuwn/SWNmU0+mbopOCwkF+7L6FYHzf9FH19y5Wmz2zA26ouOCwvkE0x6hmFxl4lAq/AD47acQ=="
         ]
       },
       {
         "did": "did:intyga:approver-bob",
         "keys": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ=="
         ]
       },
       {
         "did": "did:intyga:agent-quorum",
         "keys": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhK82+U4EUtj34LwNDhy1oTsfbcEZt5Ffo8/1YAVQHzA99TYwZvwvIrVWhzhQRrhwr9jNXZaR/Efmf3NRZyW6yw=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESFGJDGL3eSV9MmB9w44mVvVdlt7zBgV2v54ik5GuaSIb4Jr+Eppb6ElNHU4rEU67qTLrkSrzojet7PE64df9jg=="
         ]
       }
     ],
@@ -928,14 +1146,14 @@
           "signatures": [
             {
               "signerDid": "did:intyga:approver-alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-              "signature": "dwhX2o3M3cx5UNcYUg6thp17CD5eZCxKvd6loUWxQZ2SyscbsNtrzl5PVD+n8ntUC/tQIYQHZ/Q70ywaq22GpQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+              "signature": "s4o4mdgYvMRw/o22oNdkxkM3CDxxk8oGmYhwI3UqSsF/KlY53AmCazD4xjbZ1HJZX1JaL/RziLBA+KUBxBAQcw==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:approver-bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw==",
-              "signature": "QcRf4Hl47+D3QBofBPwBHlzf9bBtw+8qfogmyY1GlHnS0zKGNfqh1OQzS9NoC2fYo5EHj0sLxBUIogu0PJ1CAQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "cfzyKLZGxMXLbb45Y0MePT2jDKGhLj0Fe30yt887pFWjF2tmcemm1mCDN7qvt16F0YaJSf8F0nDUeQH0aJBNog==",
               "sigAlg": "ES256"
             }
           ]
@@ -965,14 +1183,14 @@
           "signatures": [
             {
               "signerDid": "did:intyga:approver-alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-              "signature": "O1vbZXLpcdBPlsgo4PvFHhx53SD4laRoNqnvsdZKhJEIk2mWzG1noec/41gWm63dCjUHRROOyvDsKMzRjgUwcw==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+              "signature": "x0KgMDM6+abVZA0v5xrKmMVjYuhuT61EvOoeJapKURTJnBmQCQPuZU3qDSPSw+gYlPJFjGqYGpI+exTXEOzvRA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:approver-alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXqnlIre03zORl0rMgawpwSjCKyW4pKd3gQ8GxuDMpVcutsiC4xPUPkzXob5RdpgLqLVZZUn5aRnVmjJxC+yUHw==",
-              "signature": "BS6KgC1Sl21XiR29+GIuD3JfM7euztXzrvXIWooHjrtcW5NUooJsML+fdTrznfe+nJsFhoGYh/XvwySWFV3qRQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaWVY3unfkPD8Bvuwn/SWNmU0+mbopOCwkF+7L6FYHzf9FH19y5Wmz2zA26ouOCwvkE0x6hmFxl4lAq/AD47acQ==",
+              "signature": "ScNurt8p+SsSmUBuiW2qU6NGv6xaiirDPEy+qwmUCx++ShBCNATdxk5XD5IHYgwOc4TkNFFjRpca0xJb7XqSNw==",
               "sigAlg": "ES256"
             }
           ]
@@ -999,8 +1217,8 @@
           "signatures": [
             {
               "signerDid": "did:intyga:approver-bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw==",
-              "signature": "eLg/XmkvJNnMzOLLMLQ9WYl1P09mNshzlaxIrcp5c2le5F/p508+DvT3xiuELCVi7ZdWZmyK6ZG7/PaCeFfA9g==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "YZ0mmfCzCzdiLjsS2LhOS9pd9sjyAHn5vlqs4xVpxlv4NpB/5DGcAyUEFTeKMmEigBcQAFgq1fy7MYZ+U6iAhQ==",
               "sigAlg": "ES256"
             }
           ]
@@ -1027,14 +1245,14 @@
           "signatures": [
             {
               "signerDid": "did:intyga:agent-quorum",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhK82+U4EUtj34LwNDhy1oTsfbcEZt5Ffo8/1YAVQHzA99TYwZvwvIrVWhzhQRrhwr9jNXZaR/Efmf3NRZyW6yw==",
-              "signature": "rsf3YJoA9FKojaVlLO1XbnfW0dBlKTt1VfIce6PLmvjK4oKhwfPnjZljqb5hEvft5jnawxLZe8BYm90Uq+VfCQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESFGJDGL3eSV9MmB9w44mVvVdlt7zBgV2v54ik5GuaSIb4Jr+Eppb6ElNHU4rEU67qTLrkSrzojet7PE64df9jg==",
+              "signature": "DTvq4zYEBJS9Ytju9c/mVLYGLIEKoCqe76Vsi1wd0Mb+wy2qbssvY+lLQVW5TIFj/RJ/JhC2D0I6mr/KaaiWNA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:approver-bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw==",
-              "signature": "Ek31aDf98AT9sFTmfzvmv20W3yMaQ2xYeItjFuDOoZWdG4JFup7w0MHpK1EaazNKZ0TmmtOznNoC1lgSoo+W/A==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "jKVgan1UAhpuvF/ugJ09cOtEgf5gDeyNeFC70/FtGpL7tA/v/ezbdmM8upg5oCZ3hHx7k40gzqLZTE31q5vEdg==",
               "sigAlg": "ES256"
             }
           ]
@@ -1058,11 +1276,12 @@
           "attestation": null
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "PkjbRvtfhLjbgupeKzxmAwOWQNpht1nvuOdOtLmxm5P4HibeQ1MfuxOq7cebig/OT8UwENhkm9mYkafye3J0NQ==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "SNPEQwa2cbFQ8vh/R1nnI0+5rqIN2h200ZAv1b64sahwvhlh+EEpH4//6jAq6keZKYUl52fb8p6i75Mj7xJ9qg==",
         "sigAlg": "ES256",
         "verificationCode": "FFE7-F7E6"
       },
+      "asOf": "2998-12-31T23:45:00.000Z",
       "expectOkWithOptIn": true,
       "refusedWithoutOptIn": true
     },
@@ -1079,11 +1298,33 @@
           "attestation": null
         },
         "signerDid": "did:intyga:test-signer",
-        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErHam3xCKsyNT6Bg1ixBbIxT+4CMi2jSa/PlNz/RZhsDdLu3U44cFaG7b0bKNyjtdmS8Kwckxn5X6ukv20pzc5w==",
-        "signature": "NPbPf5IquG1gzDt7xKMDLa7/2fo/NGVkpFk7tyzf81ibXtyH3Y3PaC4uhy53RCy9lexskXZuZRVmH1VVj91AwA==",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "prHGJiCiHFZZPBTlj7xAtM7B8uKw2nRByJfreYErdq+ZVGcaJjklTY+sCdvwI/Wf5NeCxTm8Wya99yOiUkg6Xg==",
         "sigAlg": "ES256",
         "verificationCode": "C506-D9BC"
       },
+      "asOf": "2998-12-31T23:45:00.000Z",
+      "expectOkWithOptIn": false
+    },
+    {
+      "name": "offline-forward-dated-refused",
+      "receipt": {
+        "canonicalPayload": "{\"actionType\":\"backend.action\",\"challengedAt\":\"2998-12-31T23:30:00.000Z\",\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"00000000-0000-4000-8000-000000000000\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"target\":\"prod-db-cluster-01\",\"type\":\"div-offline-intent\",\"v\":1}",
+        "target": "prod-db-cluster-01",
+        "actionType": "backend.action",
+        "actionDescription": "Delete production database",
+        "params": {},
+        "requester": {
+          "did": "did:intyga:key:abc",
+          "attestation": null
+        },
+        "signerDid": "did:intyga:test-signer",
+        "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2yX3u1jvGcq91m8FtcY/18WJbrpKq+QfHZz5y+vSZQeNf063j/Lg9U5OhucNYPbeJTM+HBIdREemgoxb+RZmPA==",
+        "signature": "0wZlUA3Y1cB21dcgybD20aLvq3fR1GE1Lc+tG8QwOq1bvl/Ke4yrBJhYqKwxjZa/miq+Rwuo/MnD+CdOaw4G1g==",
+        "sigAlg": "ES256",
+        "verificationCode": "FFE7-F7E6"
+      },
+      "asOf": "2998-12-31T20:00:00.000Z",
       "expectOkWithOptIn": false
     }
   ],
@@ -1092,14 +1333,14 @@
       {
         "did": "did:intyga:approver-alice",
         "keys": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXqnlIre03zORl0rMgawpwSjCKyW4pKd3gQ8GxuDMpVcutsiC4xPUPkzXob5RdpgLqLVZZUn5aRnVmjJxC+yUHw=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaWVY3unfkPD8Bvuwn/SWNmU0+mbopOCwkF+7L6FYHzf9FH19y5Wmz2zA26ouOCwvkE0x6hmFxl4lAq/AD47acQ=="
         ]
       },
       {
         "did": "did:intyga:approver-bob",
         "keys": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ=="
         ]
       }
     ],
@@ -1119,19 +1360,20 @@
           "signatures": [
             {
               "signerDid": "did:intyga:approver-alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-              "signature": "Q5W5Urgl6u4izlpS5W1KxQEVmwBZrfyIyS9pSbXabJrjOU1K6SOgPQND2IV2II9Xe+VK2vRgBFI1eyiGZDADMQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+              "signature": "UNfbT5s3jMupnlhzOiWYWQ5rp1SLZoRREOqQtG/QFcTaiWZFZWCNnFvHF3DIJDNm5xMhazDRMnFbYuqiAVLjlw==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:approver-bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw==",
-              "signature": "qmJoM05+eNJRU8xr4KsW9r+u7eVRgkgE0iR73Xc6GP/fQeJLoVhqa11RDyRDwRDYM2rbrTxzPiy+A/pMbr75wQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "v4UUtdA/qqY2eLtdsETIY5yLZuZDCnmbooZFqEYDkxJz4FTESinfU3WKB2WplzdTlBgHj8zcFE7DHedbFsR3Lg==",
               "sigAlg": "ES256"
             }
           ],
           "verificationCode": "6817-49FF"
         },
+        "asOf": "2998-12-31T00:00:00.000Z",
         "expectOk": true,
         "delegatedTo": [
           "did:intyga:sre-a",
@@ -1156,19 +1398,51 @@
           "signatures": [
             {
               "signerDid": "did:intyga:approver-alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5qjkvRMaqYAbKqxt+clZsW1n3sdZ5Hjyp5tkrZ38x43oZuihW31nlUnr+gzBYhf4ZzCG7Gw7zarWD+3K29wjDQ==",
-              "signature": "RAp9HLFCvSYQIE01wFCRMu5vduNWNKNWy8Uhe4v2eZdAVBOLfJloryvBYWpjoSTmGOfAqZhqbqFe8t5847xaDA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+              "signature": "rpF99hr3R+qQmQ66Pwbvm7/7juTntU5du8z5VIBKtWUwl7BsFip0NhaE44MTE9QIOy1j0Ie9trHZsL8qeDrDYA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:approver-bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELIJMu0drzlJd2zhxIcr1QNYUHnn9c/m5h4C1GQM9NL9Hoku8liJLCzqRuZf4MBZHZucmGYycoQHltkF3TnB1rw==",
-              "signature": "P7rl5Nm5I2EyCdLKs6stLQ6WA3UCdSpCy7IS66fZSE8MlUHXeIo8xUB+yB4Eu1wT4uCtqkTMU8fDlvtXcpDnfQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "MmGWtFv2AYZDwtU7enopmHEfUYaTQFSoweQJ8ZOPjHDdvMM2ym0RFAbydZG8V01ja8c/TCXDnvblwqHWVyegxw==",
               "sigAlg": "ES256"
             }
           ],
           "verificationCode": "2EF6-13AB"
         },
+        "asOf": "2998-12-31T00:00:00.000Z",
+        "expectOk": false
+      },
+      {
+        "name": "delegation-forward-dated-refused",
+        "receipt": {
+          "canonicalPayload": "{\"actionType\":\"backend.action\",\"delegatedQuorum\":2,\"delegatedTo\":[\"did:intyga:sre-a\",\"did:intyga:sre-c\",\"did:intyga:sre-😀\",\"did:intyga:sre-�\"],\"display\":\"Delete production database\",\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"nonce\":\"dddd3333-eeee-4000-8000-delegate0001\",\"params\":{},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:key:abc\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2998-12-30T00:00:00.000Z\",\"target\":\"prod-db-cluster-01\",\"type\":\"div-delegation\",\"v\":1}",
+          "target": "prod-db-cluster-01",
+          "actionType": "backend.action",
+          "actionDescription": "Delete production database",
+          "params": {},
+          "requester": {
+            "did": "did:intyga:key:abc",
+            "attestation": null
+          },
+          "signatures": [
+            {
+              "signerDid": "did:intyga:approver-alice",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVffnFMXmQeHp+uGb+soOmKealqTrj1+5YE2cDGFFm6iL5t/UJB4PYgKCYWGDa5Z7EPZL5VXbVnMt/IKiHkKjOg==",
+              "signature": "MbDiSCT06zNKe1A5kJfP2YrCrJ7Yb+m7CCGPyAfopZ5RtUcs0QgrAB3epKhT/VnzuqR1ThlFaOSJOm19FEuf+Q==",
+              "sigAlg": "ES256"
+            },
+            {
+              "signerDid": "did:intyga:approver-bob",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETF5/CFjQNJyXgTjXFW9w1op6A1zLO6HV2LZcEMC7KaShLuTMnd3FU9E8fnHFcnNQqJmwIg4L4+7s59nW+yRzlQ==",
+              "signature": "38sIGg0ax7+KeIJjZKsZTlsSKnMDiUn3SDBbXNKfy4pDbrs1PZxsPVTxpOIKTvAuPnNBl3RKOkzOJ8j5aLbPsw==",
+              "sigAlg": "ES256"
+            }
+          ],
+          "verificationCode": "6817-49FF"
+        },
+        "asOf": "2998-12-29T00:00:00.000Z",
         "expectOk": false
       }
     ]
@@ -1186,10 +1460,39 @@
       }
     ]
   },
+  "platformIntentPayloads": {
+    "note": "TS-only until the ports implement DIV §5c: their approval verifiers refuse the div-platform-intent type via fail-closed unknown-type handling (the designed migration path). The payload is hash-only by design — no display, no params, no requirement.",
+    "cases": [
+      {
+        "name": "simple",
+        "input": {
+          "payloadHash": "4278f6abffb4e58b50884cba302ba91e5eb53e0375babcf6cfd6c27475c4da1f",
+          "rpId": "platform.example",
+          "subjectExternalId": "user-123",
+          "signedAt": "2026-08-27T00:00:00.000Z",
+          "expiresAt": "2999-01-01T00:00:00.000Z",
+          "nonce": "9c3f7b2a-5c00-4000-8000-abcdef123456"
+        },
+        "expected": "{\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"hashAlg\":\"SHA-256\",\"nonce\":\"9c3f7b2a-5c00-4000-8000-abcdef123456\",\"payloadHash\":\"4278f6abffb4e58b50884cba302ba91e5eb53e0375babcf6cfd6c27475c4da1f\",\"rpId\":\"platform.example\",\"signedAt\":\"2026-08-27T00:00:00.000Z\",\"subject\":{\"externalId\":\"user-123\"},\"type\":\"div-platform-intent\",\"v\":1}"
+      },
+      {
+        "name": "unicode-externalId",
+        "input": {
+          "payloadHash": "fc41b600e2cae4db403333e5c3999300172d1a9e70ae70e3d6941c24fbbd468b",
+          "rpId": "plattform.example",
+          "subjectExternalId": "kund-åäö \"quoted\" — 日本語",
+          "signedAt": "2026-08-27T00:00:00.000Z",
+          "expiresAt": "2999-01-01T00:00:00.000Z",
+          "nonce": "9c3f7b2a-5c01-4000-8000-abcdef123456"
+        },
+        "expected": "{\"expiresAt\":\"2999-01-01T00:00:00.000Z\",\"hashAlg\":\"SHA-256\",\"nonce\":\"9c3f7b2a-5c01-4000-8000-abcdef123456\",\"payloadHash\":\"fc41b600e2cae4db403333e5c3999300172d1a9e70ae70e3d6941c24fbbd468b\",\"rpId\":\"plattform.example\",\"signedAt\":\"2026-08-27T00:00:00.000Z\",\"subject\":{\"externalId\":\"kund-åäö \\\"quoted\\\" — 日本語\"},\"type\":\"div-platform-intent\",\"v\":1}"
+      }
+    ]
+  },
   "policy": {
-    "rsaPubB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqrXA2364UfyfoX1+mk8AdxjqeOD9olWqnK09WLvjtThQZBvgCePOX9rRyNW20e4DCdO7Qv82K+zkALcXv3lRH6qc6kwvFYTuq4HKtMjQI6+sW8Tt3vnR4dhrdtBc0qx8O4+bqi4vtJmB0US3y1+7Qc1Bmk4RJkSCmiXwM9tW9ums4myghcNIdjSfxrQkl/mXlN3qA20LbnlUIYl24uZZVaGRhO7Tcnf5Q2G7cWkUwEaC8ZKyluOx5gHQMRVJOm5bl9qcbePeB8D/eSzgHl9vqYJQM9zZF8pQ+I5+c76e0gWVZvZfyUeZFm14/Huo8th63VJ3UK6O7SvPD1OR7BAuBwIDAQAB",
-    "rsaPrivB64": "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCqtcDbfrhR/J+hfX6aTwB3GOp44P2iVaqcrT1Yu+O1OFBkG+AJ485f2tHI1bbR7gMJ07tC/zYr7OQAtxe/eVEfqpzqTC8VhO6rgcq0yNAjr6xbxO3e+dHh2Gt20FzSrHw7j5uqLi+0mYHRRLfLX7tBzUGaThEmRIKaJfAz21b26azibKCFw0h2NJ/GtCSX+ZeU3eoDbQtueVQhiXbi5llVoZGE7tNyd/lDYbtxaRTARoLxkrKW47HmAdAxFUk6bluX2pxt494HwP95LOAeX2+pglAz3NkXylD4jn5zvp7SBZVm9l/JR5kWbXj8e6jy2HrdUndQro7tK88PU5HsEC4HAgMBAAECggEAO3Cgz+yuOmH3pU/gmtNCSrXiwqc4uWMRzo8lyrVVgr6yg0EPf/IR5F95Z3A+wZcZ+LyAOkJJ9v57n2IhQzr3S8ro604OoPQR9KbzUYKQsrRTE/schmS/N1/Xf13qzDJh6Y1F+votAznmMVs3kflp5u4U1ykyoHv/a7QlELFhdQRy/v0ki8eHd53bi68/bN9KPwMKG/0JBaBHGpUEL+eup78ctHCeYVKDB5Hg+zro03P6Wh1AaVRub3qpgmhnIURTPPGP8C3oJWm+wT84ZtqYo6BShar7oxWW34NP08dxogbZ7+OfRN2tBRmffjPF2C+olP3ZT/qrjhS0Tvu5SzUq2QKBgQDp0lTn9Q8wlqcz1X30Bcmck14i6LGD1w03GdSAzfy67WhQqsAkfX63zP4W1mgq3C6OnDUaXcfFxvlWw63vc+WIJrkppsgd+wVFXDW4gycZGbSWCR4PndRGwzszWlEu3QWBRpN2+YPVLPu57bAlHb7AKsn4+ZIUL4J+jzqK45GSHwKBgQC65vEVigtjFfyHEWqoRVU1KibUqWEi/O3omLW+V/SlV0ffHcgAs3V/EsrqAeJCLpNCRdUcQJ2x1519TXRYzDBoUE1RzGCQ98L3diLCXraXR1O8YIscfgw1Q39yCaJq5dglmLnt6obpdQAkMb4/pDGLCLVri6/UAOKbw1XYZ4P3GQKBgEODWsa7CI7EATVDQKH0Bdmy52x2+cKSlptBVw117LJgmE0qcF5Y6fzSMM+RSvSNLNg6nE6no2Yk5Ju71n4cXbspSy+Om5ukfkofrNdA70odFPp5WXey37cq6e4S9vvsD4nbQfsJYppr6acuzTx6UTiVYkoEbbxsV2aJnqK5wK+LAoGABfAERKzoA7PVG+1fuAzL0i6OoT7oSRZD8Jm5XFyq9v242Mu3aN5Ko0jTjW+V4ohcQUS6qnUbDWVOKYbmZVPHTekPK8QUZUaZuQbVv9sGbfPkIx3mDXerp52HVPYdZMv8e+VIMti6hHwlDwFNi/QJZuNV8B617URB7rTb604OkTECgYB0tHYS5WPghenEYfdbY5s1JJtleGTc6vy2oC0VXOduR4c540lJOHy4ziMBnKw3Nsu0jOFuC/aC4ccSk1PhWY4mrz3ff3Vuy4vALzZBeeAnWLUARHL1dwqFPi2UvOk859QV4DNaue/pUHrTaYKRi5S1Wx6svpnCZrjSPcyN/NleIQ==",
+    "rsaPubB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9baBaSequz8aiP6IdUpg93YrlNGcvvdk0Gcm52AZiV2bnLm9BdXLrtATzAEbAOU3Bkwf6CRYxTa8c18jUX3ssHMFqEXt7I5sHMU10W+4Aw0nPHkFvfXzeXIG9+7Lmdc2DtJYCZUtOtQb8MA/ekMyZslR+9qAoAtYHiPzspX7FHqFu7Zw1haq4LBsHVd7EPRVZxOgMu8P5lNWKyHZRtss09xv2KkZql8+GwoXASVm+wRvVQgPrkTp5oc+ZkKGxp38B4F6BcTij1BmNhcV6dfa+sjtx03iBZD13+KznR4iEN9LcygzrRAMaKnFymiiv6XogEQK9z0N1lUVWv91Qq3NwQIDAQAB",
+    "rsaPrivB64": "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQD1toFpJ6q7PxqI/oh1SmD3diuU0Zy+92TQZybnYBmJXZucub0F1cuu0BPMARsA5TcGTB/oJFjFNrxzXyNRfeywcwWoRe3sjmwcxTXRb7gDDSc8eQW99fN5cgb37suZ1zYO0lgJlS061BvwwD96QzJmyVH72oCgC1geI/OylfsUeoW7tnDWFqrgsGwdV3sQ9FVnE6Ay7w/mU1YrIdlG2yzT3G/YqRmqXz4bChcBJWb7BG9VCA+uROnmhz5mQobGnfwHgXoFxOKPUGY2FxXp19r6yO3HTeIFkPXf4rOdHiIQ30tzKDOtEAxoqcXKaKK/peiARAr3PQ3WVRVa/3VCrc3BAgMBAAECggEACEmkGspiOVebCwTe0Gn2VFJxjN73FP/eMCNSjhpRMi9smMAxDnnUGWzeRhLBeOnCTd2Sc++J6Pj8KT4LwGtpaNgwWCknqcNyBRRnyM0mXT/700/XsD0T/cQpVQKCbolyQtS4cHZOJL5TxO6PFY4frJTcxYxsqzlGuxmGVj81zU51ueUK5tN2EUQXGCc0y6sDslTYGZfsjIl+gHT1Jvi5RRb/mo0z/pp9W2T8TG877fGCQpaBaEymQSPy5RiIRDWFsY6l2n4eHqX/4HQ6LPxzUsQbdr69+MZiUuyCtaG9inBlFP6RCqyl3vnKLX7La+vGMOMGKcWCJHz+JB1e7Xx2+QKBgQD80HNub/boIiu4XLWFgF5lBINV4PnGoHLxnCMHZJ+Eh+bMiyoISPOIu1PY0kkPQs9vyGbu54Mk86hK+63o+cb9pMjO1E5i/6sVLcTSK5Cy73Phm5khb66coFYwaChwM3/9eiS4YL3T9/ziDQMSxIBqz12EqhZUnMwKFoJkSdJ2rQKBgQD4zyWATPN5svoXuhzIWu3pvmWfN34Zrd6msTji6ocjXg2HyrXXUuNnVKuQ4ZxuSDmba2s39g8f8UiunpaLEZkaomC4fsUe8ap3mljK/FaF/+7RWxtV6/LIRnVzYdefMspPuQLIV6YP8yz1bQb0XTcydARXEv6MDxMxAmrDZTXZ5QKBgQDWOhT2ai4BOqNtkDHJNKPIWfConwFIzMFZ9wK/ywZZGYf7n5k4eAjVvlcojdiW8/gvMtP2cXtxnn7nOyl9F9sFJ9N5X/IkdZ2VTrlPltcAqWO6s00pRifiVQNz9W7+1MUKF6xyCJgSvDsvmfMWvihLWfhW6IIPpOZJThWjweJz6QKBgQCD/ehIEwqLAj6YfbwtMcfK252vhFHaL5nRVmz2PDKquYd2BTzIWQmYVJubhYRmINymraq4ikllyaukLy9v4UsWjRPAbEgIbW3gezolnQ4NkkNQPwPWZhBq3K4MItivdNNMzbpDK/RFu9ya6lbpJdZVZqSyyLnO9WRZ+I1I0RVrXQKBgCwduC4LenOz35MFKs776C1PW9N63HfFgH+3dbUar17zgqWU2UdPDm4xwgdPE5sW/Pfcl0HcfSj55edksExil2F1QaUGlr3JL+ttlJrM90bJP9T8OJPak9SXq30q3RjWvLlkXELQ+S8zK9LKDi6RCohW0O9dwNbtDpog63m0Kxeg",
     "plaintext": "{\"rules\":[{\"action\":\"wire_transfer\",\"effect\":\"require_approval\",\"maxAmount\":1000}]}",
-    "blob": "v1.hcgt8MiNPwK3kJ/wcJwu51S32iRLnYaEQnzwt7u0cf6cwMv/ogzHZo1Bwn6klUiXUiTLgFEmzCKFA+YVOW7Uv8w8r7DaeLxuEaHGEO39HQ5aCfgF4kUacgkwj882nuLRH2ALUGmDz41L7L8/5HY0mC/p8I9g+zn59ddEJbp4GL8LaljvjE0L99eBBsI+XDP8ywCsVf4Ur5QE1UHYPTXGBRyRotKVzAnrdhNKIPuJ9bME50Yggbdf/ciMC54V9/TF0jDaSKzhzmv44OysjwAmy6WCiCQuvPzmW/gWAoYQp3ZnmrUzVAO/jz6zlxCUFuhIRZa7jvrDNQYlV8kmlrHMVg==.7oSZa5F+TjqPBwur.KOcVaFQjXYPAQE6W2WylKtwibVkEbaBTRWm7eWCzGGkAlrjB9N4V867iEPTpeqAp6fSbBGS7I7ZRT0AyBd5zhl0A+ZyfmQLqHU3E9V5s4V653N6Xxwaxf8WHEyhsLdUMNYi6"
+    "blob": "v1.Y77Xl95xNjZ8NQrWBky1dvntkYX0R9ze86m31f9UN37i2nPXo9Z4/ESXXOmUw0oja9grSZ3a5/WduN4ySR8r/zcqZhSHMEfD1skrKZ1n8T+L/apyju2Uy2/RjQR6WLZ7FdBBkJHbB6z3fxR2JyirTclr4RKdKynV4VPxWX74xR8sLgmmFwOxnQkYsKVbv+mwK1ANi4QUboetYIOb1wSrMikKWY3kgOTPXm7VfcnbmOSduRN4pNKRVBCxPxGSSGO+U4RLl0S7TgI8ls3n2bxVbrER3xSYh7PxD4t9ofJgZZOTVedDUDr+EFilUxTjOGaSjtkgTECD2Jg3cQd4IaTGHQ==.v/DpNHEIeHmFxaoa.P3EVOZQu9Y0Zy+oR+1n+L+1EXBxC6jNUTJ8IrTCIIGXC5Mkhdgqu3YXMCqwIs+C0j2/ixiHKhSfDldfQUssLg8Xll7xmB0rBIFP+ZGY3vQkVmTi8ib9I2csDNTuijE8JTN/J"
   }
 }

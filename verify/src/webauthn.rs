@@ -17,6 +17,25 @@ use sha2::{Digest, Sha256};
 const AUTH_DATA_FLAG_UP: u8 = 0x01; // User Present
 const AUTH_DATA_FLAG_UV: u8 = 0x04; // User Verified
 
+/// Accepts both base64url — the DIV §4.4.2 wire form, which browsers and the gateway emit
+/// unpadded — and standard base64 (legacy receipts, older vectors), padded or not. The alphabets
+/// differ only in characters 62/63 (`+/` vs `-_`), so normalizing is lossless and cannot make an
+/// invalid encoding valid.
+fn decode_base64_flexible(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
+    let mut normalized: String = s
+        .chars()
+        .map(|c| match c {
+            '-' => '+',
+            '_' => '/',
+            other => other,
+        })
+        .collect();
+    while normalized.len() % 4 != 0 {
+        normalized.push('=');
+    }
+    STANDARD.decode(normalized)
+}
+
 // ─── Minimal CBOR reader (COSE_Key only) ─────────────────────────────────────
 // Just enough CBOR to walk a COSE_Key map: ints, byte/text strings, arrays, maps. Anything outside
 // that subset is rejected rather than guessed.
@@ -237,8 +256,7 @@ pub(crate) fn verify_webauthn_witness(
         }
     };
 
-    let client_data_buf = STANDARD
-        .decode(client_data_json)
+    let client_data_buf = decode_base64_flexible(client_data_json)
         .map_err(|_| "invalid clientDataJSON base64".to_string())?;
     let client_data: ClientData = serde_json::from_slice(&client_data_buf)
         .map_err(|_| "clientDataJSON is not valid JSON".to_string())?;
@@ -260,8 +278,7 @@ pub(crate) fn verify_webauthn_witness(
         return Err("clientDataJSON challenge does not match canonical payload".to_string());
     }
 
-    let auth_data = STANDARD
-        .decode(authenticator_data)
+    let auth_data = decode_base64_flexible(authenticator_data)
         .map_err(|_| "invalid authenticatorData base64".to_string())?;
     if auth_data.len() < 37 {
         return Err("authenticatorData is too short".to_string());
@@ -281,13 +298,11 @@ pub(crate) fn verify_webauthn_witness(
     }
 
     // The COSE key is parsed from the TRUSTED key, not the receipt's copy.
-    let cose_buf = STANDARD
-        .decode(trusted_key)
+    let cose_buf = decode_base64_flexible(trusted_key)
         .map_err(|_| "invalid trusted key base64".to_string())?;
     let verifying_key = parse_cose_p256_key(&cose_buf)?;
 
-    let sig_bytes = STANDARD
-        .decode(&witness.signature)
+    let sig_bytes = decode_base64_flexible(&witness.signature)
         .map_err(|_| "invalid signature base64".to_string())?;
 
     let client_data_hash = Sha256::digest(&client_data_buf);

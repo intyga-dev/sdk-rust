@@ -149,11 +149,28 @@ impl Default for RequireApprovalOptions {
 /// How many back-to-back polling failures before `require_approval` declares the gateway unreachable.
 const MAX_POLL_ERRORS: u32 = 5;
 
+/// The most a cached exchange is refreshed ahead of its advertised expiry. The margin is
+/// `min(60s, expires_in / 10)`, so a short-lived token still gets a proportionate head start.
+const MAX_REFRESH_MARGIN: Duration = Duration::from_secs(60);
+
+/// A bearer obtained by client-credentials exchange, with the expiry the gateway advertised.
+struct CachedToken {
+    token: String,
+    /// `None` when the response carried no usable `expires_in`: the token is then kept until the
+    /// gateway refuses it with a 401, which is the pre-refresh behaviour.
+    expires_at: Option<Instant>,
+    /// How far ahead of `expires_at` the cache stops being served.
+    margin: Duration,
+}
+
 /// A Intyga gateway client generic over its HTTP [`Transport`].
 pub struct Client<T: Transport> {
     opts: ClientOptions,
     transport: T,
-    cached_token: Option<String>,
+    cached: Option<CachedToken>,
+    /// Monotonic clock behind the refresh margin. A plain fn pointer so tests can swap it without a
+    /// dependency; production always uses `Instant::now`.
+    now: fn() -> Instant,
 }
 
 impl<T: Transport> Client<T> {
@@ -161,17 +178,32 @@ impl<T: Transport> Client<T> {
         Client {
             opts,
             transport,
-            cached_token: None,
+            cached: None,
+            now: Instant::now,
         }
     }
 
     /// Resolve a bearer token: the provided one, a cached exchange, or a fresh client-credentials exchange.
+    ///
+    /// An exchanged token is cached until shortly before the `expires_in` the gateway reported
+    /// (`min(60s, expires_in / 10)` ahead of it), then re-exchanged on the next call. Because every
+    /// poll in [`Client::require_approval`] goes through here, a wait longer than the token's
+    /// lifetime keeps working. An explicit [`ClientOptions::token`] is returned as-is: there is
+    /// nothing to re-exchange it with.
     pub fn token(&mut self) -> Result<String, String> {
         if let Some(t) = &self.opts.token {
             return Ok(t.clone());
         }
-        if let Some(t) = &self.cached_token {
-            return Ok(t.clone());
+        if let Some(c) = &self.cached {
+            let fresh = match c.expires_at {
+                None => true,
+                // `now + margin < expires_at` is `now < expires_at - margin` without the
+                // subtraction, which would panic if the margin ever exceeded the Instant.
+                Some(expires_at) => (self.now)() + c.margin < expires_at,
+            };
+            if fresh {
+                return Ok(c.token.clone());
+            }
         }
         let (id, secret) = match (&self.opts.client_id, &self.opts.client_secret) {
             (Some(id), Some(secret)) => (id, secret),
@@ -197,7 +229,26 @@ impl<T: Transport> Client<T> {
             .and_then(Value::as_str)
             .ok_or("token response missing access_token")?
             .to_string();
-        self.cached_token = Some(token.clone());
+        // `expires_in` is seconds (RFC 6749 §5.1). Anything absent, non-numeric, non-positive or
+        // too large to represent is "no expiry known" rather than an error: the token is still
+        // usable, we just fall back to refreshing on a 401.
+        let (expires_at, margin) = match data.get("expires_in").and_then(Value::as_f64) {
+            Some(secs) if secs.is_finite() && secs > 0.0 => {
+                let margin = Duration::try_from_secs_f64(secs / 10.0)
+                    .map(|m| m.min(MAX_REFRESH_MARGIN))
+                    .unwrap_or(MAX_REFRESH_MARGIN);
+                let expires_at = Duration::try_from_secs_f64(secs)
+                    .ok()
+                    .and_then(|d| (self.now)().checked_add(d));
+                (expires_at, margin)
+            }
+            _ => (None, Duration::ZERO),
+        };
+        self.cached = Some(CachedToken {
+            token: token.clone(),
+            expires_at,
+            margin,
+        });
         Ok(token)
     }
 
@@ -333,31 +384,43 @@ impl<T: Transport> Client<T> {
     }
 
     /// Perform an authenticated JSON request, returning the response body on 2xx.
+    ///
+    /// A 401 on a token this client exchanged itself drops the cache and retries exactly once with
+    /// a fresh exchange — it covers clock skew against the refresh margin and a gateway that
+    /// shortened its lifetimes after the token was minted. An explicit `ClientOptions::token` is
+    /// never retried: a 401 on it is the caller's to handle.
     fn do_json(
         &mut self,
         method: &str,
         path: &str,
         body: Option<&Value>,
     ) -> Result<String, String> {
-        let token = self.token()?;
         let url = format!("{}{}", self.opts.gateway_url, path);
-        let auth = format!("Bearer {}", token);
         let body_str = body.map(|b| b.to_string());
-
-        let mut headers: Vec<(&str, &str)> = vec![("authorization", &auth)];
-        if body_str.is_some() {
-            headers.push(("content-type", "application/json"));
+        let mut retried = false;
+        loop {
+            let token = self.token()?;
+            let auth = format!("Bearer {}", token);
+            let mut headers: Vec<(&str, &str)> = vec![("authorization", &auth)];
+            if body_str.is_some() {
+                headers.push(("content-type", "application/json"));
+            }
+            let res = self
+                .transport
+                .request(method, &url, &headers, body_str.as_deref())?;
+            if res.status == 401 && self.opts.token.is_none() && !retried {
+                self.cached = None;
+                retried = true;
+                continue;
+            }
+            if !(200..300).contains(&res.status) {
+                return Err(format!(
+                    "{} {} failed: {} {}",
+                    method, path, res.status, res.body
+                ));
+            }
+            return Ok(res.body);
         }
-        let res = self
-            .transport
-            .request(method, &url, &headers, body_str.as_deref())?;
-        if !(200..300).contains(&res.status) {
-            return Err(format!(
-                "{} {} failed: {} {}",
-                method, path, res.status, res.body
-            ));
-        }
-        Ok(res.body)
     }
 }
 
@@ -451,7 +514,32 @@ fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
+
+    // Fake monotonic clock for the refresh-margin tests. Thread-local because each test runs on
+    // its own thread, so tests cannot see each other's time.
+    thread_local! {
+        static FAKE_NOW: Cell<Option<Instant>> = const { Cell::new(None) };
+    }
+
+    fn fake_now() -> Instant {
+        FAKE_NOW.with(|c| c.get().expect("set_now() before using the fake clock"))
+    }
+
+    fn set_now(t: Instant) {
+        FAKE_NOW.with(|c| c.set(Some(t)));
+    }
+
+    // How many client-credentials exchanges and bearer-authenticated calls the transport saw.
+    fn count_auth(seen: &[String]) -> (usize, Vec<String>) {
+        let basics = seen.iter().filter(|a| a.starts_with("Basic ")).count();
+        let bearers = seen
+            .iter()
+            .filter(|a| a.starts_with("Bearer "))
+            .cloned()
+            .collect();
+        (basics, bearers)
+    }
 
     // A route is (method, path_suffix, response-sequence); each response is a (status, body) pair
     // consumed per matching call.
@@ -611,6 +699,173 @@ mod tests {
         assert_eq!(client.token().unwrap(), "exchanged");
         // Second call is served from cache (mock has a single-use route but cache avoids re-calling).
         assert_eq!(client.token().unwrap(), "exchanged");
+        // No `expires_in` means no expiry is known: the cache is kept however much time passes,
+        // and only a 401 (see `retries_once_with_a_fresh_token_after_401`) will replace it.
+        let base = Instant::now();
+        set_now(base);
+        client.now = fake_now;
+        set_now(base + Duration::from_secs(10 * 24 * 3600));
+        assert_eq!(client.token().unwrap(), "exchanged");
+        let (exchanges, _) = count_auth(&client.transport.seen_auth.borrow());
+        assert_eq!(
+            exchanges, 1,
+            "absent expires_in must still mean one exchange"
+        );
+    }
+
+    #[test]
+    fn token_refreshes_before_advertised_expiry() {
+        let transport = MockTransport::new().on(
+            "POST",
+            "/oauth/token",
+            vec![
+                (200, r#"{"access_token":"a","expires_in":100}"#),
+                (200, r#"{"access_token":"b","expires_in":100}"#),
+            ],
+        );
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                client_id: Some("cid".into()),
+                client_secret: Some("secret".into()),
+                ..Default::default()
+            },
+            transport,
+        );
+        let base = Instant::now();
+        set_now(base);
+        client.now = fake_now;
+
+        assert_eq!(client.token().unwrap(), "a");
+        // expires_in=100 → margin is min(60, 100/10) = 10s, so the cache is served up to t=90s.
+        set_now(base + Duration::from_secs(89));
+        assert_eq!(
+            client.token().unwrap(),
+            "a",
+            "inside the margin: still cached"
+        );
+        set_now(base + Duration::from_secs(91));
+        assert_eq!(
+            client.token().unwrap(),
+            "b",
+            "past expires_in - margin: re-exchanged"
+        );
+        // And the new token is itself cached against its own expiry.
+        set_now(base + Duration::from_secs(150));
+        assert_eq!(client.token().unwrap(), "b");
+        let (exchanges, _) = count_auth(&client.transport.seen_auth.borrow());
+        assert_eq!(exchanges, 2);
+    }
+
+    #[test]
+    fn retries_once_with_a_fresh_token_after_401() {
+        let transport = MockTransport::new()
+            .on(
+                "POST",
+                "/oauth/token",
+                vec![
+                    (200, r#"{"access_token":"a","expires_in":3600}"#),
+                    (200, r#"{"access_token":"b","expires_in":3600}"#),
+                ],
+            )
+            .on(
+                "POST",
+                "/authorize",
+                vec![
+                    (401, r#"{"error":"Invalid token: ERR_JWT_EXPIRED"}"#),
+                    (200, r#"{"nonce":"n_r","status":"PENDING"}"#),
+                ],
+            );
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                client_id: Some("cid".into()),
+                client_secret: Some("secret".into()),
+                ..Default::default()
+            },
+            transport,
+        );
+        let res = client
+            .authorize(
+                "wire",
+                &AuthorizeOptions {
+                    target: Some("prod-payments".into()),
+                    ..Default::default()
+                },
+            )
+            .expect("the 401 should have been retried with a re-exchanged token");
+        assert_eq!(res.nonce, "n_r");
+        let (exchanges, bearers) = count_auth(&client.transport.seen_auth.borrow());
+        assert_eq!(exchanges, 2);
+        assert_eq!(bearers, vec!["Bearer a", "Bearer b"]);
+    }
+
+    #[test]
+    fn a_second_401_is_not_retried_again() {
+        let transport = MockTransport::new()
+            .on(
+                "POST",
+                "/oauth/token",
+                vec![
+                    (200, r#"{"access_token":"a"}"#),
+                    (200, r#"{"access_token":"b"}"#),
+                ],
+            )
+            .on(
+                "GET",
+                "/authorize/n_x",
+                vec![(401, r#"{"error":"Invalid token"}"#)],
+            );
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                client_id: Some("cid".into()),
+                client_secret: Some("secret".into()),
+                ..Default::default()
+            },
+            transport,
+        );
+        let err = client
+            .status("n_x")
+            .expect_err("a 401 after the one retry must surface, not loop");
+        assert!(err.contains("401"), "unexpected error: {}", err);
+        let (exchanges, bearers) = count_auth(&client.transport.seen_auth.borrow());
+        assert_eq!(exchanges, 2, "exactly one re-exchange");
+        assert_eq!(bearers, vec!["Bearer a", "Bearer b"]);
+    }
+
+    #[test]
+    fn explicit_token_is_never_re_exchanged_on_401() {
+        // No /oauth/token route at all: an exchange attempt would fail with "no mock route".
+        let transport = MockTransport::new().on(
+            "POST",
+            "/authorize",
+            vec![(401, r#"{"error":"Invalid token"}"#)],
+        );
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                // Credentials are present too, so a re-exchange WOULD be possible — the explicit
+                // token must still win and never be swapped out behind the caller's back.
+                token: Some("t".into()),
+                client_id: Some("cid".into()),
+                client_secret: Some("secret".into()),
+            },
+            transport,
+        );
+        let err = client
+            .authorize(
+                "wire",
+                &AuthorizeOptions {
+                    target: Some("prod-payments".into()),
+                    ..Default::default()
+                },
+            )
+            .expect_err("a 401 on an explicit token is the caller's to handle");
+        assert!(err.contains("401"), "unexpected error: {}", err);
+        let (exchanges, bearers) = count_auth(&client.transport.seen_auth.borrow());
+        assert_eq!(exchanges, 0);
+        assert_eq!(bearers, vec!["Bearer t"]);
     }
 
     #[test]

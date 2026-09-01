@@ -629,10 +629,14 @@ fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
 }
 
 fn now_unix_secs() -> i64 {
+    // FAIL CLOSED on a broken clock: a pre-epoch SystemTime used to yield 0, which made
+    // `now > expiresAt + skew` false and silently PASSED the expiry check. i64::MAX makes every
+    // receipt read as expired instead — a refusal the caller can see (and `allow_expired` still
+    // works for audit re-verification).
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+        .unwrap_or(i64::MAX)
 }
 
 /// Verify an ApprovalReceipt offline (ES256 receipts; WebAuthn receipts fail closed here).
@@ -661,6 +665,32 @@ fn check_signer_class(requirement: &ApprovalRequirement) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// Enforce DIV §4.3.2: `requiredApprovals` is an integer ≥ 1.
+///
+/// Stated as its own refusal rather than clamped, because §5 step 7 rejects unless the counted
+/// identities are AT LEAST this number — 0 is satisfied by counting nothing, so an unenforced
+/// minimum would attest an envelope carrying no valid witness signature. (Non-integral and negative
+/// values never reach here: the field deserializes as `u32`, so they fail the payload parse.)
+fn check_quorum_minimum(requirement: &ApprovalRequirement) -> Result<(), String> {
+    if requirement.required_approvals < 1 {
+        return Err(
+            "signed requirement.requiredApprovals must be an integer of at least 1 (DIV §4.3.2)"
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// The instant and skew tolerance every time-based check shares: expiry (DIV §6.2) and the
+/// forward-dating rule of §5a.3 rule 3.
+fn evaluation_time(opts: &VerifyOptions) -> (i64, i64) {
+    (
+        opts.as_of_unix_secs.unwrap_or_else(now_unix_secs),
+        opts.clock_skew_seconds
+            .unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS),
+    )
 }
 
 /// Verify an ApprovalReceipt offline, with relying-party context.
@@ -734,6 +764,7 @@ pub fn verify_approval_receipt_with_options(
             .and_then(|v| v.get("requirement").cloned())
             .and_then(|v| serde_json::from_value(v).ok())
             .ok_or("receipt payload is missing the signed approval requirement")?;
+    check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
 
     // Offline proofs carry `challengedAt` so the validity WINDOW can be bounded here, not merely at mint.
@@ -770,6 +801,15 @@ pub fn verify_approval_receipt_with_options(
                 "offline window is {:.1} minutes, over the {MAX_OFFLINE_WINDOW_MINUTES}-minute maximum",
                 window_secs as f64 / 60.0
             ));
+        }
+        // The cap above bounds the window's WIDTH; this bounds its POSITION (DIV §5a.3 rule 3).
+        // Without it a proof challenged for a date years out, with a compliant 60-minute window,
+        // verifies today and keeps verifying until that date — the pre-signed bearer capability
+        // §5a.1 rejects. NOT gated on `allow_expired`: that override re-examines a proof that WAS
+        // valid and has lapsed, and says nothing about one dated in the future.
+        let (now, skew) = evaluation_time(opts);
+        if challenged > now + skew {
+            return Err("offline proof is challenged in the future (DIV §5a.3)".to_string());
         }
         // A hardware-key policy CANNOT be satisfied offline (DIV §5a.3 step 4). WebAuthn needs a secure
         // context and an RP ID an offline signing surface will not match, so an offline witness is
@@ -853,10 +893,7 @@ pub fn verify_approval_receipt_with_options(
     if !opts.allow_expired {
         let expiry = parse_rfc3339_utc_secs(&expires_at)
             .ok_or("expiresAt is not a valid RFC3339 UTC timestamp")?;
-        let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
-        let skew = opts
-            .clock_skew_seconds
-            .unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
+        let (now, skew) = evaluation_time(opts);
         if now > expiry + skew {
             return Err(
                 "proof has expired (set allow_expired for audit re-verification)".to_string(),
@@ -951,10 +988,9 @@ pub fn verify_approval_receipt_with_options(
 
     // Under a delegation the quorum is the DELEGATED one. Already checked to equal the offline
     // payload's signed `required_approvals`, so this is the same number by a different route — stated
-    // explicitly so the substitution is visible where it takes effect.
-    let required = delegated_quorum
-        .unwrap_or(requirement.required_approvals)
-        .max(1) as usize;
+    // explicitly so the substitution is visible where it takes effect. Both numbers were refused
+    // above unless they are at least 1, so no floor is applied here.
+    let required = delegated_quorum.unwrap_or(requirement.required_approvals) as usize;
     if verified.len() < required {
         return Err(format!(
             "quorum not met: {} of {} required approver signatures verified{}",
@@ -1017,6 +1053,16 @@ pub fn verify_delegation(
         return Err("payload is not a div-delegation".to_string());
     }
 
+    // DIV §4.4.6: a Delegation REQUIRES an identity-associating anchor and MUST be refused under a
+    // key-set anchor — at seal verification too, not only when delegatedTo is enforced at use time.
+    // The sealing quorum names PEOPLE; in PublicKeys mode it would count credentials instead.
+    if matches!(expected.approvers, ApproverTrustAnchor::PublicKeys(_)) {
+        return Err(
+            "a delegation requires a DID-mode trust anchor; a key-set anchor cannot associate identities (DIV §4.4.6)"
+                .to_string(),
+        );
+    }
+
     let delegated_to: Vec<String> = probe
         .get("delegatedTo")
         .and_then(Value::as_array)
@@ -1070,6 +1116,13 @@ pub fn verify_delegation(
             window_secs as f64 / 3600.0
         ));
     }
+    // Position, not just width (DIV §5a.6 step 1, mirroring §5a.3 rule 3). A forward-dated
+    // `sealedAt` slides the 72-hour window arbitrarily far out, and §5a.8 names that cap as
+    // Delegation's ONLY mitigation. Unconditional, like the offline mirror.
+    let (now, skew) = evaluation_time(opts);
+    if sealed > now + skew {
+        return Err("delegation is sealed in the future (DIV §5a.6)".to_string());
+    }
 
     let requester = receipt
         .requester
@@ -1080,6 +1133,7 @@ pub fn verify_delegation(
         .cloned()
         .and_then(|v| serde_json::from_value(v).ok())
         .ok_or("delegation payload is missing the signed approval requirement")?;
+    check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
     if expected.target.is_empty() {
         return Err("expected.target is required — it must be YOUR target identifier, asserted independently of the delegation (DIV Target Isolation)".to_string());
@@ -1109,16 +1163,10 @@ pub fn verify_delegation(
         return Err("target/params/actionType do not match what was delegated".to_string());
     }
 
-    if !opts.allow_expired {
-        let now = opts.as_of_unix_secs.unwrap_or_else(now_unix_secs);
-        let skew = opts
-            .clock_skew_seconds
-            .unwrap_or(DEFAULT_CLOCK_SKEW_SECONDS);
-        if now > expiry + skew {
-            return Err(
-                "delegation has expired (set allow_expired for audit re-verification)".to_string(),
-            );
-        }
+    if !opts.allow_expired && now > expiry + skew {
+        return Err(
+            "delegation has expired (set allow_expired for audit re-verification)".to_string(),
+        );
     }
     if receipt.sig_alg.as_deref() == Some("AUTO_APPROVED") {
         return Err("a delegation cannot be auto-approved — delegating approval authority requires human signatures".to_string());
@@ -1178,7 +1226,7 @@ pub fn verify_delegation(
         verified.insert(identity);
     }
 
-    let required = requirement.required_approvals.max(1) as usize;
+    let required = requirement.required_approvals as usize;
     if verified.len() < required {
         let detail = fold_failures(&failures);
         return Err(format!(
@@ -1506,6 +1554,15 @@ mod tests {
                 expect_ok,
                 result
             );
+            // Pinning the REASON, not just the refusal: `0 >= 0` makes DIV §5 step 7 true with
+            // nothing counted, so this receipt can be refused for the right rule or for none.
+            if name == "zero-required-approvals-refused" {
+                let err = result.clone().expect_err("must be refused");
+                assert!(
+                    err.contains("requiredApprovals must be an integer of at least 1"),
+                    "{name}: refused for the wrong rule ({err})"
+                );
+            }
             checked += 1;
         }
         assert!(
@@ -1552,6 +1609,16 @@ mod tests {
         );
         let raw = std::fs::read_to_string(path).expect("read golden vectors");
         serde_json::from_str(&raw).expect("parse golden vectors")
+    }
+
+    /// A case's committed evaluation time (DIV §5a.3 rule 3). Panics rather than defaulting to the
+    /// wall clock: a missing `asOf` would silently restore the position-blind behaviour these
+    /// vectors pin against.
+    fn vector_as_of(name: &str, case: &Value) -> i64 {
+        case["asOf"]
+            .as_str()
+            .and_then(parse_rfc3339_utc_secs)
+            .unwrap_or_else(|| panic!("{name}: vector carries no usable asOf"))
     }
 
     /// Runs the canonicalizer against the same `stableStringify` cases the TypeScript and Python
@@ -2436,7 +2503,18 @@ mod tests {
             nonce: "del-witness-bound".to_string(),
             action_type: "deleteDatabase".to_string(),
             params,
-            approvers: ApproverTrustAnchor::PublicKeys(vec![pub_b64]),
+            // DID mode: delegations refuse a key-set anchor outright (DIV §4.4.6), so the sealing
+            // fixture must resolve identities the way a real deployment does.
+            approvers: ApproverTrustAnchor::Dids {
+                dids: vec!["did:intyga:human:alice".to_string()],
+                resolve: Box::new(move |did| {
+                    if did == "did:intyga:human:alice" {
+                        Some(pub_b64.clone())
+                    } else {
+                        None
+                    }
+                }),
+            },
         };
         (receipt, expected)
     }
@@ -2641,18 +2719,37 @@ mod tests {
                 &receipt,
                 ApproverTrustAnchor::PublicKeys(vec![signer_key.clone()]),
             );
+            let as_of = vector_as_of(name, case);
             let opts = VerifyOptions {
                 allow_offline: true,
+                as_of_unix_secs: Some(as_of),
                 ..Default::default()
             };
             let with_opt_in = verify_approval_receipt_with_options(&receipt, &expected, &opts);
             let expect_ok = case["expectOkWithOptIn"].as_bool().unwrap_or(false);
             assert_eq!(with_opt_in.is_ok(), expect_ok, "{name}: {with_opt_in:?}");
             if case["refusedWithoutOptIn"].as_bool().unwrap_or(false) {
+                let without = VerifyOptions {
+                    as_of_unix_secs: Some(as_of),
+                    ..Default::default()
+                };
                 assert!(
-                    verify_approval_receipt(&receipt, &expected).is_err(),
+                    verify_approval_receipt_with_options(&receipt, &expected, &without).is_err(),
                     "{name} must be refused without the offline opt-in"
                 );
+            }
+            // The forward-dating rule sits outside `allow_expired`'s reach: that override
+            // re-examines a proof that WAS valid and has lapsed, never one dated in the future.
+            if name == "offline-forward-dated-refused" {
+                let audit = VerifyOptions {
+                    allow_offline: true,
+                    allow_expired: true,
+                    as_of_unix_secs: Some(as_of),
+                    ..Default::default()
+                };
+                let err = verify_approval_receipt_with_options(&receipt, &expected, &audit)
+                    .expect_err("the audit override must not rescue a forward-dated proof");
+                assert!(err.contains("challenged in the future"), "{name}: {err}");
             }
         }
     }
@@ -2671,7 +2768,11 @@ mod tests {
             let receipt: ApprovalReceipt =
                 serde_json::from_value(case["receipt"].clone()).expect("deserialize receipt");
             let expected = vector_expectation(&receipt, vector_did_anchor(&d["approvers"]));
-            let result = verify_delegation(&receipt, &expected, &VerifyOptions::default());
+            let opts = VerifyOptions {
+                as_of_unix_secs: Some(vector_as_of(name, case)),
+                ..Default::default()
+            };
+            let result = verify_delegation(&receipt, &expected, &opts);
             let expect_ok = case["expectOk"].as_bool().unwrap_or(false);
             assert_eq!(result.is_ok(), expect_ok, "{name}: {result:?}");
             if expect_ok {
@@ -2692,5 +2793,37 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn delegation_refuses_key_set_anchor_at_seal_verification() {
+        // DIV §4.4.6: the sealing quorum names PEOPLE; a key-set anchor counts credentials and can
+        // never associate identities, so seal verification must refuse it outright — previously
+        // only delegatedTo enforcement at use time did.
+        let receipt = ApprovalReceipt {
+            canonical_payload: r#"{"v":1,"type":"div-delegation"}"#.to_string(),
+            target: None,
+            action_type: None,
+            action_description: "irrelevant".to_string(),
+            params: serde_json::json!({}),
+            signer_did: None,
+            signer_public_key: None,
+            signature: None,
+            sig_alg: None,
+            authenticator_data: None,
+            client_data_json: None,
+            requester: None,
+            signatures: None,
+            verification_code: String::new(),
+        };
+        let expected = Expected {
+            target: "t".to_string(),
+            nonce: "n".to_string(),
+            action_type: "x".to_string(),
+            params: serde_json::json!({}),
+            approvers: ApproverTrustAnchor::PublicKeys(vec!["a-listed-key".to_string()]),
+        };
+        let err = verify_delegation(&receipt, &expected, &VerifyOptions::default()).unwrap_err();
+        assert!(err.contains("§4.4.6"), "{err}");
     }
 }
