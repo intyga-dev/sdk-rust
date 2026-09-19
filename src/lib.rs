@@ -266,9 +266,11 @@ impl<T: Transport> Client<T> {
         let mut body = json!({
             "target": target,
             "actionDescription": action_description,
-            "actionType": opts.action_type,
             "params": opts.params.clone().unwrap_or_else(|| json!({})),
         });
+        if let Some(action_type) = &opts.action_type {
+            body["actionType"] = json!(action_type);
+        }
         if let Some(t) = opts.timeout_seconds {
             body["timeout"] = json!(t);
         }
@@ -550,6 +552,7 @@ mod tests {
     struct MockTransport {
         routes: RefCell<Vec<MockRoute>>,
         seen_auth: RefCell<Vec<String>>,
+        seen_bodies: RefCell<Vec<Option<String>>>,
     }
 
     impl MockTransport {
@@ -557,6 +560,7 @@ mod tests {
             MockTransport {
                 routes: RefCell::new(Vec::new()),
                 seen_auth: RefCell::new(Vec::new()),
+                seen_bodies: RefCell::new(Vec::new()),
             }
         }
         fn on(mut self, method: &str, path_suffix: &str, responses: Vec<(u16, &str)>) -> Self {
@@ -578,8 +582,9 @@ mod tests {
             method: &str,
             url: &str,
             headers: &[(&str, &str)],
-            _body: Option<&str>,
+            body: Option<&str>,
         ) -> Result<HttpResponse, String> {
+            self.seen_bodies.borrow_mut().push(body.map(str::to_string));
             for (name, value) in headers {
                 if *name == "authorization" {
                     self.seen_auth.borrow_mut().push(value.to_string());
@@ -598,6 +603,47 @@ mod tests {
             }
             Err(format!("no mock route for {} {}", method, url))
         }
+    }
+
+    #[test]
+    fn authorize_omits_unset_action_type_and_preserves_explicit_value() {
+        let transport = MockTransport::new().on(
+            "POST",
+            "/authorize",
+            vec![(200, r#"{"nonce":"n_1","status":"PENDING"}"#)],
+        );
+        let mut client = Client::with_transport(
+            ClientOptions {
+                gateway_url: "https://gw.example".into(),
+                token: Some("t".into()),
+                ..Default::default()
+            },
+            transport,
+        );
+        client
+            .authorize(
+                "wire",
+                &AuthorizeOptions {
+                    target: Some("prod".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        client
+            .authorize(
+                "wire",
+                &AuthorizeOptions {
+                    target: Some("prod".into()),
+                    action_type: Some("transfer".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let bodies = client.transport.seen_bodies.borrow();
+        let omitted: Value = serde_json::from_str(bodies[0].as_ref().unwrap()).unwrap();
+        let explicit: Value = serde_json::from_str(bodies[1].as_ref().unwrap()).unwrap();
+        assert!(omitted.get("actionType").is_none());
+        assert_eq!(explicit["actionType"], "transfer");
     }
 
     fn fast_opts(a: AuthorizeOptions) -> RequireApprovalOptions {

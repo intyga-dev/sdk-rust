@@ -270,7 +270,9 @@ pub(crate) fn verify_webauthn_witness(
         return Err("assertion origin does not match expected_origin".to_string());
     }
     if client_data.cross_origin && !opts.allow_cross_origin.unwrap_or(false) {
-        return Err("assertion was produced in a cross-origin frame (crossOrigin=true)".to_string());
+        return Err(
+            "assertion was produced in a cross-origin frame (crossOrigin=true)".to_string(),
+        );
     }
     let expected_challenge = URL_SAFE_NO_PAD.encode(receipt.canonical_payload.as_bytes());
     let client_challenge = client_data.challenge.trim_end_matches('=');

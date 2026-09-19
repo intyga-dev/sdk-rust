@@ -1,12 +1,19 @@
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{
+    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    Engine as _,
+};
 use p256::ecdsa::signature::Verifier;
 use p256::ecdsa::{Signature, VerifyingKey};
 use p256::pkcs8::DecodePublicKey;
 use p256::PublicKey;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
+pub mod bundle;
+pub mod chain;
 pub mod ledger;
+pub mod rekor;
 mod webauthn;
 
 /// DIV protocol version (docs/DIV.md v1).
@@ -25,6 +32,8 @@ pub const DIV_OFFLINE_INTENT_TYPE: &str = "div-offline-intent";
 /// pre-declared action to named local operators. It authorizes NOTHING on its own —
 /// [`verify_approval_receipt`] refuses this type outright, with no opt-in. Use [`verify_delegation`].
 pub const DIV_DELEGATION_TYPE: &str = "div-delegation";
+pub const DIV_AGENT_AUTHORITY_TYPE: &str = "div-agent-authority";
+pub const DIV_PLATFORM_INTENT_TYPE: &str = "div-platform-intent";
 /// RECOMMENDED expiry tolerance in seconds (DIV §6.2).
 pub const DEFAULT_CLOCK_SKEW_SECONDS: i64 = 30;
 /// Hard cap on an offline proof's validity window, enforced at verification and not only at mint. An
@@ -39,6 +48,16 @@ pub const MAX_DELEGATION_WINDOW_HOURS: i64 = 72;
 /// process immediately before an irreversible action. The TS reference measured a 20,000-witness
 /// receipt at 3.6s of blocked verification and a 1.16 MB error string. Matches @intyga/verify.
 pub const MAX_WITNESSES: usize = 64;
+pub const SELF_CERTIFYING_DID_PREFIX: &str = "did:intyga:key:";
+pub fn self_certifying_did(public_key_b64: &str) -> Result<String, String> {
+    let bytes = STANDARD
+        .decode(public_key_b64)
+        .map_err(|_| "invalid public key base64")?;
+    Ok(format!(
+        "{SELF_CERTIFYING_DID_PREFIX}{}",
+        URL_SAFE_NO_PAD.encode(Sha256::digest(bytes))
+    ))
+}
 /// How many per-witness failure reasons are folded into the returned reason string; the rest are
 /// elided as "+N more". Folding every reason is what produced the megabyte error above.
 const MAX_REPORTED_FAILURES: usize = 8;
@@ -130,6 +149,66 @@ pub struct ApprovalReceipt {
     pub verification_code: String,
 }
 
+/// A DIV §5c hash-only receipt. Display copies are deliberately ignored by verification.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformReceipt {
+    pub canonical_payload: String,
+    #[serde(default)]
+    pub payload_hash: Option<String>,
+    #[serde(default)]
+    pub rp_id: Option<String>,
+    #[serde(default)]
+    pub subject: Option<Value>,
+    #[serde(default)]
+    pub signed_at: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<String>,
+    #[serde(default)]
+    pub nonce: Option<String>,
+    #[serde(default)]
+    pub signatures: Option<Vec<ApprovalWitness>>,
+    #[serde(default)]
+    pub signer_did: Option<String>,
+    #[serde(default)]
+    pub signer_public_key: Option<String>,
+    #[serde(default)]
+    pub signature: Option<String>,
+    #[serde(default)]
+    pub sig_alg: Option<String>,
+    #[serde(default)]
+    pub authenticator_data: Option<String>,
+    #[serde(default, rename = "clientDataJSON")]
+    pub client_data_json: Option<String>,
+    #[serde(default)]
+    pub verification_code: Option<String>,
+}
+
+pub struct PlatformReceiptExpectation {
+    pub approvers: ApproverTrustAnchor,
+    pub payload_hash: String,
+    pub rp_id: String,
+    pub nonce: String,
+    pub subject_external_id: Option<String>,
+}
+
+pub struct AgentAuthorityExpectation {
+    pub approvers: ApproverTrustAnchor,
+    pub target: String,
+    pub agent_did: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VerifiedAgentAuthority {
+    pub agent_did: String,
+    pub target: String,
+    pub action_patterns: Vec<String>,
+    pub nonce: String,
+    pub signers: Vec<String>,
+    pub sealed_at: String,
+    pub expires_at: String,
+}
+
 /// The approver keys the relying party trusts, resolved from its OWN key-management policy.
 ///
 /// This is the single most important verification input. Without it, verification would use the
@@ -177,8 +256,12 @@ impl ApproverTrustAnchor {
     /// three. We deliberately do NOT compare the presented key to the trusted one — a mismatched key
     /// simply fails to verify, and byte-equality is wrong for COSE, which has many valid encodings
     /// of one P-256 key.
-    fn candidates(&self, signer_did: &str) -> Result<Vec<(String, String)>, String> {
-        self.candidates_restricted(signer_did, None)
+    fn candidates(
+        &self,
+        signer_did: &str,
+        presented_key: &str,
+    ) -> Result<Vec<(String, String)>, String> {
+        self.candidates_restricted(signer_did, presented_key, None)
     }
 
     /// `candidates` plus an optional narrowing to the identities a delegation names (DIV §5a.6 step
@@ -187,6 +270,7 @@ impl ApproverTrustAnchor {
     fn candidates_restricted(
         &self,
         signer_did: &str,
+        presented_key: &str,
         restrict_to: Option<&[String]>,
     ) -> Result<Vec<(String, String)>, String> {
         // A delegation names identities, and in `PublicKeys` mode `signerDid` is an unverified string —
@@ -216,6 +300,12 @@ impl ApproverTrustAnchor {
                 }
                 match resolve(signer_did) {
                     Some(key) => Ok(vec![(key, signer_did.to_string())]),
+                    None if signer_did.starts_with(SELF_CERTIFYING_DID_PREFIX)
+                        && self_certifying_did(presented_key).ok().as_deref()
+                            == Some(signer_did) =>
+                    {
+                        Ok(vec![(presented_key.into(), signer_did.into())])
+                    }
                     None => Err(format!("no trusted key could be resolved for {signer_did}")),
                 }
             }
@@ -230,6 +320,11 @@ impl ApproverTrustAnchor {
                     .map(|k| (k, signer_did.to_string()))
                     .collect();
                 if keys.is_empty() {
+                    if signer_did.starts_with(SELF_CERTIFYING_DID_PREFIX)
+                        && self_certifying_did(presented_key).ok().as_deref() == Some(signer_did)
+                    {
+                        return Ok(vec![(presented_key.into(), signer_did.into())]);
+                    }
                     return Err(format!("no trusted key could be resolved for {signer_did}"));
                 }
                 Ok(keys)
@@ -415,6 +510,9 @@ pub fn canonical_intent_payload(
         "actionType": action_type,
         "display": display,
         "params": params,
+        // DIV §4.3.4. Reserved and REQUIRED in the bytes; `null` states that no external-evidence
+        // condition applied, exactly as `requester.attestation`'s null does.
+        "evidence": Value::Null,
         "requester": req,
         "requirement": rq,
         "nonce": nonce,
@@ -490,6 +588,9 @@ pub fn canonical_offline_intent_payload(
         "actionType": action_type,
         "display": display,
         "params": params,
+        // DIV §4.3.4. Reserved and REQUIRED in the bytes; `null` states that no external-evidence
+        // condition applied, exactly as `requester.attestation`'s null does.
+        "evidence": Value::Null,
         "requester": req,
         "requirement": rq,
         "nonce": nonce,
@@ -539,6 +640,45 @@ pub fn canonical_delegation_payload(
         "nonce": nonce,
         "sealedAt": sealed_at,
         "expiresAt": expires_at,
+    }))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn canonical_agent_authority_payload(
+    target: &str,
+    action_patterns: &[String],
+    display: &str,
+    agent_did: &str,
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+    nonce: &str,
+    sealed_at: &str,
+    expires_at: &str,
+) -> Result<String, String> {
+    let (req, rq) = canonical_common(requester, requirement);
+    let mut patterns = action_patterns.to_vec();
+    patterns.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
+    stable_stringify(&serde_json::json!({
+        "v": DIV_VERSION, "type": DIV_AGENT_AUTHORITY_TYPE, "target": target,
+        "actionPatterns": patterns, "display": display, "agent": { "did": agent_did },
+        "requester": req, "requirement": rq, "nonce": nonce,
+        "sealedAt": sealed_at, "expiresAt": expires_at,
+    }))
+}
+
+pub fn canonical_platform_intent_payload(
+    payload_hash: &str,
+    rp_id: &str,
+    subject_external_id: &str,
+    signed_at: &str,
+    expires_at: &str,
+    nonce: &str,
+) -> Result<String, String> {
+    stable_stringify(&serde_json::json!({
+        "v": DIV_VERSION, "type": DIV_PLATFORM_INTENT_TYPE, "hashAlg": "SHA-256",
+        "payloadHash": payload_hash, "rpId": rp_id,
+        "subject": { "externalId": subject_external_id }, "signedAt": signed_at,
+        "expiresAt": expires_at, "nonce": nonce,
     }))
 }
 
@@ -643,10 +783,14 @@ fn now_unix_secs() -> i64 {
 ///
 /// This is the convenience entry point; use [`verify_approval_receipt_with_options`] to attest
 /// WEBAUTHN receipts (which require a pinned origin and RP ID) or policy AUTO_APPROVED receipts.
+///
+/// On success returns the DISTINCT approver identities whose signatures verified, sorted — the
+/// same value the TypeScript, Go, Java and Python verifiers return. Empty for an AUTO_APPROVED
+/// receipt, because no human signed it.
 pub fn verify_approval_receipt(
     receipt: &ApprovalReceipt,
     expected: &Expected,
-) -> Result<(), String> {
+) -> Result<Vec<String>, String> {
     verify_approval_receipt_with_options(receipt, expected, &VerifyOptions::default())
 }
 
@@ -665,6 +809,25 @@ fn check_signer_class(requirement: &ApprovalRequirement) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// Validate the reserved `evidence` field out of the signed bytes (DIV §4.3.4). REQUIRED to be
+/// present and REQUIRED to be `null` in v1; a non-null value is an evidence-conditioned
+/// authorization whose semantics this verifier has not been taught, and must never verify as if it
+/// were unconditioned.
+///
+/// Probes the parsed `Value` rather than deserializing into a struct field: serde maps a MISSING
+/// field to `None` for an `Option<T>` without even needing `#[serde(default)]`, so a struct cannot
+/// express the absent-vs-null distinction this check is made of. `get` returns `None` only when the
+/// key is absent, and `Some(Value::Null)` when it is present and null.
+fn check_evidence(canonical: &str) -> Result<(), String> {
+    let probe: Value = serde_json::from_str(canonical)
+        .map_err(|_| "the signed payload is not valid JSON".to_string())?;
+    match probe.get("evidence") {
+        None => Err("the signed payload is missing evidence (DIV §4.3.4)".to_string()),
+        Some(Value::Null) => Ok(()),
+        Some(_) => Err("the signed payload declares an evidence condition, which this verifier does not support — refusing rather than treating it as unconditioned (DIV §4.3.4)".to_string()),
+    }
 }
 
 /// Enforce DIV §4.3.2: `requiredApprovals` is an integer ≥ 1.
@@ -702,7 +865,7 @@ pub fn verify_approval_receipt_with_options(
     receipt: &ApprovalReceipt,
     expected: &Expected,
     opts: &VerifyOptions,
-) -> Result<(), String> {
+) -> Result<Vec<String>, String> {
     if receipt.canonical_payload.is_empty() {
         return Err("missing canonicalPayload".to_string());
     }
@@ -766,6 +929,9 @@ pub fn verify_approval_receipt_with_options(
             .ok_or("receipt payload is missing the signed approval requirement")?;
     check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
+    // DIV §5-step-3c. Before Local Payload Reconstruction, so an unsupported payload shape does not
+    // surface as a params mismatch.
+    check_evidence(&receipt.canonical_payload)?;
 
     // Offline proofs carry `challengedAt` so the validity WINDOW can be bounded here, not merely at mint.
     let mut challenged_at = String::new();
@@ -825,6 +991,17 @@ pub fn verify_approval_receipt_with_options(
     let mut delegated_to: Option<Vec<String>> = None;
     let mut delegated_quorum: Option<u32> = None;
     if let Some(d) = &opts.delegation {
+        let expiry = parse_rfc3339_utc_secs(&d.expires_at)
+            .ok_or("delegation expiresAt is not a valid RFC3339 UTC timestamp")?;
+        if !opts.allow_expired {
+            let (now, skew) = evaluation_time(opts);
+            if now > expiry + skew {
+                return Err(
+                    "delegation has expired (set allow_expired for audit re-verification)"
+                        .to_string(),
+                );
+            }
+        }
         if d.target != expected.target {
             return Err("the delegation was issued for a different target".to_string());
         }
@@ -919,8 +1096,15 @@ pub fn verify_approval_receipt_with_options(
             if !opts.allow_auto_approved {
                 return Err("AUTO_APPROVED receipts are refused by default".to_string());
             }
-            return Ok(());
+            // No human signed, so there are no signers to report — not an empty quorum that passed.
+            return Ok(Vec::new());
         }
+    }
+
+    if requirement.requester_cannot_approve
+        && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
+    {
+        return Err("requesterCannotApprove requires a DID-mode trust anchor; in PublicKeys mode signerDid is unverified and four-eyes cannot be enforced".to_string());
     }
 
     let witnesses = witnesses_of(receipt);
@@ -940,10 +1124,11 @@ pub fn verify_approval_receipt_with_options(
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut failures: Vec<String> = Vec::new();
     for witness in &witnesses {
-        let candidates = match expected
-            .approvers
-            .candidates_restricted(&witness.signer_did, delegated_to.as_deref())
-        {
+        let candidates = match expected.approvers.candidates_restricted(
+            &witness.signer_did,
+            &witness.signer_public_key,
+            delegated_to.as_deref(),
+        ) {
             Ok(c) => c,
             Err(reason) => {
                 failures.push(reason);
@@ -999,7 +1184,369 @@ pub fn verify_approval_receipt_with_options(
             fold_failures(&failures)
         ));
     }
-    Ok(())
+    // The DEDUPLICATED set, in sorted order — the same contract the other four ports report. A
+    // BTreeSet already iterates sorted, matching the delegation and authority paths below.
+    Ok(verified.into_iter().collect())
+}
+
+fn platform_as_approval(receipt: &PlatformReceipt) -> ApprovalReceipt {
+    ApprovalReceipt {
+        canonical_payload: receipt.canonical_payload.clone(),
+        target: None,
+        action_type: None,
+        action_description: String::new(),
+        params: Value::Null,
+        signatures: receipt.signatures.clone(),
+        signer_did: receipt.signer_did.clone(),
+        signer_public_key: receipt.signer_public_key.clone(),
+        signature: receipt.signature.clone(),
+        sig_alg: receipt.sig_alg.clone(),
+        authenticator_data: receipt.authenticator_data.clone(),
+        client_data_json: receipt.client_data_json.clone(),
+        requester: None,
+        verification_code: receipt.verification_code.clone().unwrap_or_default(),
+    }
+}
+
+/// Verify a hash-only platform receipt under a caller-owned subject key trust anchor (DIV §5c.3).
+pub fn verify_platform_receipt(
+    receipt: &PlatformReceipt,
+    expected: &PlatformReceiptExpectation,
+    opts: &VerifyOptions,
+) -> Result<Vec<String>, String> {
+    let value: Value = serde_json::from_str(&receipt.canonical_payload)
+        .map_err(|_| "canonicalPayload is not valid JSON".to_string())?;
+    if value.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
+        return Err("unsupported DIV payload version".into());
+    }
+    match value.get("type").and_then(Value::as_str) {
+        Some(DIV_PLATFORM_INTENT_TYPE) => {}
+        Some(DIV_INTENT_TYPE | DIV_OFFLINE_INTENT_TYPE) => {
+            return Err(
+                "this is an ordinary approval receipt — verify it with verify_approval_receipt"
+                    .into(),
+            )
+        }
+        _ => return Err("payload is not a div-platform-intent".into()),
+    }
+    if expected.nonce.is_empty() {
+        return Err("expected.nonce is required".into());
+    }
+    if value.get("nonce").and_then(Value::as_str) != Some(expected.nonce.as_str()) {
+        return Err("receipt is for a different challenge".into());
+    }
+    if expected.payload_hash.len() != 64
+        || !expected
+            .payload_hash
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        return Err("expected.payload_hash must be the 64-character lowercase hex SHA-256 you recomputed yourself".into());
+    }
+    if expected.rp_id.is_empty() {
+        return Err("expected.rp_id is required".into());
+    }
+    if let Some(rp) = &opts.expected_rp_id {
+        if rp != &expected.rp_id {
+            return Err("opts.expected_rp_id conflicts with expected.rp_id".into());
+        }
+    }
+    if opts
+        .expected_origin
+        .as_deref()
+        .unwrap_or_default()
+        .is_empty()
+    {
+        return Err("expected_origin is required for a WebAuthn platform receipt".into());
+    }
+    let signed_at = value
+        .get("signedAt")
+        .and_then(Value::as_str)
+        .ok_or("receipt missing signedAt")?;
+    let expires_at = value
+        .get("expiresAt")
+        .and_then(Value::as_str)
+        .ok_or("receipt missing expiresAt")?;
+    let subject = value
+        .get("subject")
+        .and_then(|v| v.get("externalId"))
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("receipt missing subject.externalId")?;
+    if expected
+        .subject_external_id
+        .as_deref()
+        .is_some_and(|s| s != subject)
+    {
+        return Err("receipt was signed by a different subject".into());
+    }
+    let recomputed = canonical_platform_intent_payload(
+        &expected.payload_hash,
+        &expected.rp_id,
+        subject,
+        signed_at,
+        expires_at,
+        &expected.nonce,
+    )?;
+    if recomputed != receipt.canonical_payload {
+        return Err("payloadHash/rpId do not match what was signed".into());
+    }
+    let signed =
+        parse_rfc3339_utc_secs(signed_at).ok_or("signedAt is not a valid RFC3339 timestamp")?;
+    let expiry =
+        parse_rfc3339_utc_secs(expires_at).ok_or("expiresAt is not a valid RFC3339 timestamp")?;
+    if expiry < signed {
+        return Err("receipt expires before it was signed".into());
+    }
+    let (now, skew) = evaluation_time(opts);
+    if signed > now + skew {
+        return Err("receipt is signed in the future (DIV §5c.3)".into());
+    }
+    if !opts.allow_expired && now > expiry + skew {
+        return Err("proof has expired (set allow_expired for audit re-verification)".into());
+    }
+    if receipt.sig_alg.as_deref() == Some("AUTO_APPROVED") {
+        return Err("a platform receipt cannot be auto-approved".into());
+    }
+    let normalized = platform_as_approval(receipt);
+    let witnesses = witnesses_of(&normalized);
+    if witnesses.is_empty() {
+        return Err("receipt missing signature material".into());
+    }
+    if witnesses.len() > MAX_WITNESSES {
+        return Err(format!(
+            "receipt carries {} witnesses, above the {MAX_WITNESSES} this verifier will process",
+            witnesses.len()
+        ));
+    }
+    let mut verified = std::collections::BTreeSet::new();
+    let mut failures = Vec::new();
+    let mut effective = opts.clone();
+    effective.expected_rp_id = Some(expected.rp_id.clone());
+    for witness in witnesses {
+        if witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+            failures.push(format!(
+                "signer {} used a bare key; platform receipts are WebAuthn-only",
+                witness.signer_did
+            ));
+            continue;
+        }
+        let candidates = match expected
+            .approvers
+            .candidates(&witness.signer_did, &witness.signer_public_key)
+        {
+            Ok(c) => c,
+            Err(e) => {
+                failures.push(e);
+                continue;
+            }
+        };
+        let mut matched = None;
+        for (key, identity) in candidates {
+            if verify_witness(&witness, &key, &normalized, &effective).is_ok() {
+                matched = Some(identity);
+                break;
+            }
+        }
+        if let Some(identity) = matched {
+            verified.insert(identity);
+        } else {
+            failures.push("signature does not verify against any trusted subject key".into());
+        }
+    }
+    if verified.is_empty() {
+        return Err(format!(
+            "no valid subject signature{}",
+            folded_failures(&failures)
+        ));
+    }
+    Ok(verified.into_iter().collect())
+}
+
+fn folded_failures(failures: &[String]) -> String {
+    if failures.is_empty() {
+        return String::new();
+    }
+    let shown = failures
+        .iter()
+        .take(MAX_REPORTED_FAILURES)
+        .cloned()
+        .collect::<Vec<_>>();
+    let extra = failures.len().saturating_sub(shown.len());
+    format!(
+        " ({}{})",
+        shown.join("; "),
+        if extra > 0 {
+            format!("; +{extra} more")
+        } else {
+            String::new()
+        }
+    )
+}
+
+/// Verify the human sealing quorum over an online-enforced agent authority (DIV §5b).
+pub fn verify_agent_authority(
+    receipt: &ApprovalReceipt,
+    expected: &AgentAuthorityExpectation,
+    opts: &VerifyOptions,
+) -> Result<VerifiedAgentAuthority, String> {
+    let value: Value = serde_json::from_str(&receipt.canonical_payload)
+        .map_err(|_| "canonicalPayload is not valid JSON")?;
+    if value.get("v").and_then(Value::as_i64) != Some(DIV_VERSION) {
+        return Err("unsupported DIV payload version".into());
+    }
+    if value.get("type").and_then(Value::as_str) != Some(DIV_AGENT_AUTHORITY_TYPE) {
+        return Err("payload is not a div-agent-authority".into());
+    }
+    let raw_patterns = value
+        .get("actionPatterns")
+        .and_then(Value::as_array)
+        .ok_or("authority is missing a valid actionPatterns set")?;
+    let patterns = raw_patterns
+        .iter()
+        .map(Value::as_str)
+        .collect::<Option<Vec<_>>>()
+        .filter(|p| !p.is_empty() && p.iter().all(|s| !s.is_empty()))
+        .ok_or("authority is missing a valid actionPatterns set")?
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
+    let sealed_at = value
+        .get("sealedAt")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("authority is missing sealedAt")?;
+    let expires_at = value
+        .get("expiresAt")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("authority is missing expiresAt")?;
+    let sealed =
+        parse_rfc3339_utc_secs(sealed_at).ok_or("sealedAt is not a valid RFC3339 timestamp")?;
+    let expiry =
+        parse_rfc3339_utc_secs(expires_at).ok_or("expiresAt is not a valid RFC3339 timestamp")?;
+    if expiry < sealed {
+        return Err("authority expires before it was sealed".into());
+    }
+    let (now, skew) = evaluation_time(opts);
+    if sealed > now + skew {
+        return Err("authority is sealed in the future (DIV §5b.2)".into());
+    }
+    if expected.target.is_empty() {
+        return Err("expected.target is required".into());
+    }
+    if expected.agent_did.is_empty() {
+        return Err("expected.agent_did is required".into());
+    }
+    let requester = receipt
+        .requester
+        .as_ref()
+        .ok_or("authority missing requester")?;
+    let requirement: ApprovalRequirement = serde_json::from_value(
+        value
+            .get("requirement")
+            .cloned()
+            .ok_or("authority payload is missing the signed approval requirement")?,
+    )
+    .map_err(|_| "authority payload is missing the signed approval requirement")?;
+    check_quorum_minimum(&requirement)?;
+    check_signer_class(&requirement)?;
+    if requirement.requester_cannot_approve
+        && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
+    {
+        return Err("requesterCannotApprove requires a DID-mode trust anchor; in PublicKeys mode signerDid is unverified and four-eyes cannot be enforced".into());
+    }
+    let nonce = value
+        .get("nonce")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let recomputed = canonical_agent_authority_payload(
+        &expected.target,
+        &patterns,
+        &receipt.action_description,
+        &expected.agent_did,
+        requester,
+        &requirement,
+        nonce,
+        sealed_at,
+        expires_at,
+    )?;
+    if recomputed != receipt.canonical_payload {
+        return Err("target/agent/actionPatterns do not match what was sealed".into());
+    }
+    if !opts.allow_expired && now > expiry + skew {
+        return Err("authority has expired (set allow_expired for audit re-verification)".into());
+    }
+    if receipt.sig_alg.as_deref() == Some("AUTO_APPROVED") {
+        return Err("an agent authority cannot be auto-approved".into());
+    }
+    let witnesses = witnesses_of(receipt);
+    if witnesses.is_empty() {
+        return Err("authority missing signature material".into());
+    }
+    if witnesses.len() > MAX_WITNESSES {
+        return Err(format!(
+            "authority carries {} witnesses, above the {MAX_WITNESSES} this verifier will process",
+            witnesses.len()
+        ));
+    }
+    let mut verified = std::collections::BTreeSet::new();
+    let mut failures = Vec::new();
+    for witness in witnesses {
+        let candidates = match expected
+            .approvers
+            .candidates(&witness.signer_did, &witness.signer_public_key)
+        {
+            Ok(c) => c,
+            Err(e) => {
+                failures.push(e);
+                continue;
+            }
+        };
+        let mut matched = None;
+        for (key, identity) in candidates {
+            if verify_witness(&witness, &key, receipt, opts).is_ok() {
+                matched = Some(identity);
+                break;
+            }
+        }
+        let Some(identity) = matched else {
+            failures.push("signature does not verify against any trusted approver key".into());
+            continue;
+        };
+        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+            failures.push(format!("signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential", witness.signer_did));
+            continue;
+        }
+        if requirement.requester_cannot_approve && witness.signer_did == requester.did {
+            failures.push(format!(
+                "four-eyes: requester {} cannot seal their own request",
+                witness.signer_did
+            ));
+            continue;
+        }
+        verified.insert(identity);
+    }
+    if verified.len() < requirement.required_approvals as usize {
+        return Err(format!(
+            "authority sealing quorum not met: {} of {} required approver signatures verified{}",
+            verified.len(),
+            requirement.required_approvals,
+            folded_failures(&failures)
+        ));
+    }
+    let mut unique = patterns;
+    unique.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
+    unique.dedup();
+    Ok(VerifiedAgentAuthority {
+        agent_did: expected.agent_did.clone(),
+        target: expected.target.clone(),
+        action_patterns: unique,
+        nonce: nonce.into(),
+        signers: verified.into_iter().collect(),
+        sealed_at: sealed_at.into(),
+        expires_at: expires_at.into(),
+    })
 }
 
 /// Fold per-witness failure reasons into a bounded parenthetical detail string.
@@ -1187,7 +1734,10 @@ pub fn verify_delegation(
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut failures: Vec<String> = Vec::new();
     for witness in &witnesses {
-        let candidates = match expected.approvers.candidates(&witness.signer_did) {
+        let candidates = match expected
+            .approvers
+            .candidates(&witness.signer_did, &witness.signer_public_key)
+        {
             Ok(c) => c,
             Err(reason) => {
                 failures.push(reason);
@@ -1276,8 +1826,17 @@ fn verify_witness(
     receipt: &ApprovalReceipt,
     opts: &VerifyOptions,
 ) -> Result<(), String> {
-    if witness.sig_alg.as_deref() == Some("WEBAUTHN") {
-        return webauthn::verify_webauthn_witness(witness, trusted_key, receipt, opts);
+    match witness.sig_alg.as_deref() {
+        Some("WEBAUTHN") => {
+            return webauthn::verify_webauthn_witness(witness, trusted_key, receipt, opts)
+        }
+        Some("ES256") => {}
+        Some(algorithm) => {
+            return Err(format!(
+                "unsupported witness signature algorithm {algorithm:?}"
+            ))
+        }
+        None => return Err("witness is missing sigAlg".to_string()),
     }
     // ES256: the human's key signed the canonical payload bytes directly.
     let pub_bytes = STANDARD
@@ -1393,7 +1952,15 @@ mod tests {
     #[test]
     fn test_valid_signature_verifies() {
         let (receipt, expected) = signed_receipt();
-        assert_eq!(verify_approval_receipt(&receipt, &expected), Ok(()));
+        // Under a key-set anchor the credited identity is the KEY, never the receipt's unverified
+        // signerDid — the same identity the other four ports report in PublicKeys mode.
+        let ApproverTrustAnchor::PublicKeys(keys) = &expected.approvers else {
+            unreachable!("fixture uses a key-set anchor")
+        };
+        assert_eq!(
+            verify_approval_receipt(&receipt, &expected),
+            Ok(vec![keys[0].clone()])
+        );
     }
 
     #[test]
@@ -1403,7 +1970,7 @@ mod tests {
         let sk = test_signing_key();
         let sig: Signature = sk.sign(receipt.canonical_payload.as_bytes());
         receipt.signature = Some(STANDARD.encode(sig.to_bytes()));
-        assert_eq!(verify_approval_receipt(&receipt, &expected), Ok(()));
+        assert!(verify_approval_receipt(&receipt, &expected).is_ok());
     }
 
     #[test]
@@ -1829,7 +2396,7 @@ mod tests {
             &v.expected,
             &wa_opts(Some(&v.origin), Some(&v.rp_id)),
         );
-        assert_eq!(res, Ok(()), "valid WebAuthn receipt should verify");
+        assert!(res.is_ok(), "valid WebAuthn receipt should verify");
     }
 
     #[test]
@@ -1945,7 +2512,7 @@ mod tests {
         .expect("canonicalize");
         // Strict RFC 8785 JCS: every key sorted; type/version last. Byte-for-byte the string the TS
         // reference implementation (@intyga/mcp-schemas) emits for the same input.
-        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2,"signerClass":"human"},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
+        let expected = r#"{"actionType":"deleteDatabase","display":"Delete staging database","evidence":null,"expiresAt":"2026-07-23T19:30:00Z","nonce":"c_8f91a2","params":{"alpha":2,"mid":{"a":2,"z":1},"zeta":1},"requester":{"attestation":null,"did":"did:intyga:service:deploy-pipeline"},"requirement":{"allowedAaguids":["a-aaguid","b-aaguid"],"requesterCannotApprove":true,"requireHardwareKey":true,"requiredApprovals":2,"signerClass":"human"},"target":"prod-db-cluster-01","type":"div-intent-verification","v":1}"#;
         assert_eq!(got, expected);
     }
 
@@ -2001,10 +2568,7 @@ mod tests {
             allow_expired: true,
             ..Default::default()
         };
-        assert_eq!(
-            verify_approval_receipt_with_options(&receipt, &expected, &opts),
-            Ok(())
-        );
+        assert!(verify_approval_receipt_with_options(&receipt, &expected, &opts).is_ok());
     }
 
     #[test]
@@ -2130,10 +2694,7 @@ mod tests {
             allow_expired: true,
             ..Default::default()
         };
-        assert_eq!(
-            verify_approval_receipt_with_options(&receipt, &matching, &forensic),
-            Ok(())
-        );
+        assert!(verify_approval_receipt_with_options(&receipt, &matching, &forensic).is_ok());
     }
 
     /// Build a signed OFFLINE proof (DIV §5a.2) with the given window endpoints.
@@ -2250,10 +2811,7 @@ mod tests {
         };
         let (receipt, expected) =
             signed_offline_receipt("2026-01-01T00:00:00Z", "2026-01-01T00:30:00+00:00");
-        assert_eq!(
-            verify_approval_receipt_with_options(&receipt, &expected, &forensic),
-            Ok(())
-        );
+        assert!(verify_approval_receipt_with_options(&receipt, &expected, &forensic).is_ok());
     }
 
     /// RFC 8785 §3.2.2.3 mandates ES6 Number::toString. serde_json prints whole-valued f64 with a
@@ -2450,7 +3008,12 @@ mod tests {
         // Exactly AT the bound is still processed — and 64 copies of one valid witness count as
         // ONE distinct approver, which satisfies the fixture's 1-of-1 quorum.
         receipt.signatures = Some(vec![witness; MAX_WITNESSES]);
-        assert_eq!(verify_approval_receipt(&receipt, &expected), Ok(()));
+        let signers = verify_approval_receipt(&receipt, &expected).expect("bound is inclusive");
+        assert_eq!(
+            signers.len(),
+            1,
+            "duplicate witnesses must collapse to one distinct approver"
+        );
     }
 
     /// Build a signed, in-window DELEGATION (DIV §5a.5) fixture.
@@ -2754,6 +3317,62 @@ mod tests {
         }
     }
 
+    #[test]
+    fn cached_delegation_expiry_is_rechecked_when_used() {
+        let doc = golden_vectors();
+        let case = &doc["offlineReceipts"][0];
+        let receipt: ApprovalReceipt = serde_json::from_value(case["receipt"].clone()).unwrap();
+        let did = receipt.signer_did.clone().unwrap();
+        let key = doc["signerKey"]["spkiB64"].as_str().unwrap().to_string();
+        let expected = vector_expectation(
+            &receipt,
+            ApproverTrustAnchor::Dids {
+                dids: vec![did.clone()],
+                resolve: Box::new(move |_| Some(key.clone())),
+            },
+        );
+        let mut delegation = VerifiedDelegation {
+            delegated_to: vec![did],
+            delegated_quorum: 1,
+            target: expected.target.clone(),
+            action_type: expected.action_type.clone(),
+            params: expected.params.clone(),
+            expires_at: "2998-12-31T23:59:00Z".into(),
+            ..Default::default()
+        };
+        let verify_at = |at, allow_expired, delegation: &VerifiedDelegation| {
+            verify_approval_receipt_with_options(
+                &receipt,
+                &expected,
+                &VerifyOptions {
+                    allow_offline: true,
+                    allow_expired,
+                    as_of_unix_secs: parse_rfc3339_utc_secs(at),
+                    clock_skew_seconds: Some(DEFAULT_CLOCK_SKEW_SECONDS),
+                    delegation: Some(delegation.clone()),
+                    ..Default::default()
+                },
+            )
+        };
+        assert!(verify_at("2998-12-31T23:58:59Z", false, &delegation).is_ok());
+        assert!(verify_at("2998-12-31T23:59:30Z", false, &delegation).is_ok());
+        let expired = verify_at("2998-12-31T23:59:31Z", false, &delegation).unwrap_err();
+        assert!(expired.contains("delegation has expired"));
+        assert!(verify_approval_receipt_with_options(
+            &receipt,
+            &expected,
+            &VerifyOptions {
+                allow_offline: true,
+                as_of_unix_secs: parse_rfc3339_utc_secs("2998-12-31T23:59:31Z"),
+                ..Default::default()
+            }
+        )
+        .is_ok());
+        assert!(verify_at("2998-12-31T23:59:31Z", true, &delegation).is_ok());
+        delegation.expires_at = "invalid".into();
+        assert!(verify_at("2998-12-31T23:58:59Z", true, &delegation).is_err());
+    }
+
     /// Consumes the shared `delegationReceipts` vectors through `verify_delegation`: the sealing
     /// quorum (two ordinary approvers, one with two credentials), the reported delegated set and
     /// quorum on the positive case, and the 72-hour window cap on the negative one.
@@ -2827,3 +3446,6 @@ mod tests {
         assert!(err.contains("§4.4.6"), "{err}");
     }
 }
+
+#[cfg(test)]
+mod parity_receipts_test;

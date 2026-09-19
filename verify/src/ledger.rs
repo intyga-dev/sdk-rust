@@ -9,6 +9,7 @@
 //! used here before and is NOT JCS: it sorts by UTF-8/code points, which diverges on non-BMP keys.)
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -330,7 +331,12 @@ pub fn anchor_preimage(daily_root: &str, timestamp: &str, issuer: &str, algorith
 /// DEWP §5.2: the signature is over these 32 raw bytes, never their 64-character hex text. An
 /// implementation that signs the hex matches the digest vector and still fails to interoperate,
 /// which is why the shared `signedAnchor` vectors exist.
-fn anchor_digest_raw(daily_root: &str, timestamp: &str, issuer: &str, algorithm: &str) -> [u8; 32] {
+pub(crate) fn anchor_digest_bytes(
+    daily_root: &str,
+    timestamp: &str,
+    issuer: &str,
+    algorithm: &str,
+) -> [u8; 32] {
     let mut buf = vec![0x03u8];
     buf.extend_from_slice(anchor_preimage(daily_root, timestamp, issuer, algorithm).as_bytes());
     let mut h = Sha256::new();
@@ -345,7 +351,9 @@ pub fn anchor_digest_hex(
     issuer: &str,
     algorithm: &str,
 ) -> String {
-    to_hex(&anchor_digest_raw(daily_root, timestamp, issuer, algorithm))
+    to_hex(&anchor_digest_bytes(
+        daily_root, timestamp, issuer, algorithm,
+    ))
 }
 
 /// Verify one anchor's ES256 signature (DEWP §5.2 — single anchor, Core Profile).
@@ -353,12 +361,8 @@ pub fn anchor_digest_hex(
 /// The signed MESSAGE is the raw 32-byte anchor digest; ECDSA-P256/SHA-256 hashes it again
 /// internally, matching the TS reference (`crypto.sign` over the digest bytes, `dsaEncoding:
 /// "der"`). The key is base64 SPKI resolved by the CALLER from its own trust policy — never taken
-/// from the anchor. Non-`ES256` algorithms fail closed: this port supports the one algorithm the
-/// gateway emits, and refusing beats guessing.
-///
-/// SCOPE: this is the single-anchor primitive only. Evaluating `requiredAnchors` / issuer trust
-/// across multiple anchors (§5.3 quorum) stays out of scope for this Core Profile port — see the
-/// README's DEWP conformance section; use `@intyga/verify` for the Extended Profile.
+/// from the anchor. This backwards-compatible helper accepts ES256 only; use `verify_signed_anchor`
+/// for ES256, Ed25519 or RSA-PSS, and `verify_anchor_quorum` for caller-policy quorum evaluation.
 pub fn verify_anchor_signature(
     daily_root: &str,
     timestamp: &str,
@@ -383,9 +387,245 @@ pub fn verify_anchor_signature(
     // P1363 signatures.
     crate::verify_p256_signature(
         &key,
-        &anchor_digest_raw(daily_root, timestamp, issuer, algorithm),
+        &anchor_digest_bytes(daily_root, timestamp, issuer, algorithm),
         &sig_bytes,
     )
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedAnchor {
+    pub daily_root: String,
+    pub timestamp: String,
+    pub issuer: String,
+    pub algorithm: String,
+    pub key_id: String,
+    pub signature: String,
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub evidence: Option<String>,
+}
+#[derive(Debug, Clone)]
+pub enum AnchorQuorum {
+    AllMustAgree,
+    NOfM,
+}
+#[derive(Debug, Clone)]
+pub struct AnchorPolicy {
+    pub required_anchors: usize,
+    pub trusted_issuers: Vec<String>,
+    pub quorum: AnchorQuorum,
+}
+#[derive(Debug, Clone, Default)]
+pub struct ExternalAnchorKeys {
+    pub rekor: Option<String>,
+}
+#[derive(Debug, Clone, Default)]
+pub struct AnchorQuorumResult {
+    pub ok: bool,
+    pub verified_issuers: Vec<String>,
+    pub divergence: bool,
+    pub reason: Option<String>,
+    pub note: Option<String>,
+}
+
+fn decode_public_key(s: &str) -> Option<Vec<u8>> {
+    if s.contains("BEGIN") {
+        let joined = s
+            .lines()
+            .filter(|l| !l.starts_with("---"))
+            .collect::<String>();
+        STANDARD.decode(joined).ok()
+    } else {
+        STANDARD.decode(s).ok()
+    }
+}
+
+/// Recover the salt length encoded in an EMSA-PSS signature. Node/OpenSSL's default signer uses
+/// the maximum salt length while RustCrypto's high-level verifier defaults to the hash length; the
+/// wire format permits both. The full signature is still verified below after this parser chooses
+/// the encoded length.
+fn rsa_pss_salt_len(key: &rsa::RsaPublicKey, signature: &[u8]) -> Option<usize> {
+    use rsa::traits::PublicKeyParts;
+
+    if signature.len() != key.size() {
+        return None;
+    }
+    let signature = rsa::BigUint::from_bytes_be(signature);
+    if &signature >= key.n() {
+        return None;
+    }
+    let em_bits = key.n().bits().checked_sub(1)?;
+    let em_len = (em_bits + 7) / 8;
+    let encoded = signature.modpow(key.e(), key.n()).to_bytes_be();
+    if encoded.len() > em_len || em_len < 34 {
+        return None;
+    }
+    let mut em = vec![0u8; em_len];
+    em[em_len - encoded.len()..].copy_from_slice(&encoded);
+    if em.last().copied() != Some(0xbc) {
+        return None;
+    }
+
+    let db_len = em_len - 32 - 1;
+    let h = &em[db_len..db_len + 32];
+    let mut db = em[..db_len].to_vec();
+    let mut offset = 0usize;
+    let mut counter = 0u32;
+    while offset < db_len {
+        let mut digest = Sha256::new();
+        digest.update(h);
+        digest.update(counter.to_be_bytes());
+        let block = digest.finalize();
+        let take = (db_len - offset).min(block.len());
+        for i in 0..take {
+            db[offset + i] ^= block[i];
+        }
+        offset += take;
+        counter = counter.checked_add(1)?;
+    }
+    let unused_bits = 8 * em_len - em_bits;
+    if unused_bits > 0 {
+        db[0] &= 0xff >> unused_bits;
+    }
+    let delimiter = db.iter().position(|b| *b != 0)?;
+    if db[delimiter] != 1 {
+        return None;
+    }
+    Some(db_len - delimiter - 1)
+}
+
+pub fn verify_signed_anchor(anchor: &SignedAnchor, trusted_key: &str) -> bool {
+    let Some(key) = decode_public_key(trusted_key) else {
+        return false;
+    };
+    let Ok(sig) = STANDARD.decode(&anchor.signature) else {
+        return false;
+    };
+    let digest = anchor_digest_bytes(
+        &anchor.daily_root,
+        &anchor.timestamp,
+        &anchor.issuer,
+        &anchor.algorithm,
+    );
+    match anchor.algorithm.as_str() {
+        "ES256" => crate::parse_p256_public_key(&key)
+            .is_some_and(|k| crate::verify_p256_signature(&k, &digest, &sig)),
+        "Ed25519" => {
+            use ed25519_dalek::{pkcs8::DecodePublicKey, Signature, Verifier, VerifyingKey};
+            VerifyingKey::from_public_key_der(&key)
+                .ok()
+                .and_then(|k| {
+                    Signature::from_slice(&sig)
+                        .ok()
+                        .map(|s| k.verify(&digest, &s).is_ok())
+                })
+                .unwrap_or(false)
+        }
+        "RSA-PSS" => {
+            use rsa::signature::Verifier;
+            use rsa::{
+                pkcs8::DecodePublicKey,
+                pss::{Signature, VerifyingKey},
+                RsaPublicKey,
+            };
+            RsaPublicKey::from_public_key_der(&key)
+                .ok()
+                .and_then(|k| {
+                    let salt_len = rsa_pss_salt_len(&k, &sig)?;
+                    Signature::try_from(sig.as_slice()).ok().map(|s| {
+                        VerifyingKey::<Sha256>::new_with_salt_len(k, salt_len)
+                            .verify(&digest, &s)
+                            .is_ok()
+                    })
+                })
+                .unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
+pub fn verify_anchor_quorum<F>(
+    anchors: &[SignedAnchor],
+    daily_root: &str,
+    policy: &AnchorPolicy,
+    resolve: &F,
+    divergence_anchors: &[SignedAnchor],
+    external: &ExternalAnchorKeys,
+) -> AnchorQuorumResult
+where
+    F: Fn(&SignedAnchor) -> Option<String>,
+{
+    let trusted = |a: &SignedAnchor| policy.trusted_issuers.iter().any(|i| i == &a.issuer);
+    for a in divergence_anchors
+        .iter()
+        .filter(|a| trusted(a) && a.daily_root != daily_root)
+    {
+        if resolve(a).is_some_and(|k| verify_signed_anchor(a, &k)) {
+            return AnchorQuorumResult {
+                divergence: true,
+                reason: Some(format!(
+                    "anchor divergence: issuer {} signed a different root for this checkpoint",
+                    a.issuer
+                )),
+                ..Default::default()
+            };
+        }
+    }
+    let mut issuers = std::collections::BTreeSet::new();
+    let mut tsa = 0;
+    for a in anchors
+        .iter()
+        .filter(|a| trusted(a) && a.daily_root == daily_root)
+    {
+        match a.kind.as_deref() {
+            Some("REKOR") => {
+                if let (Some(k), Some(e)) = (
+                    &external.rekor,
+                    crate::rekor::parse_rekor_evidence(a.evidence.as_deref()),
+                ) {
+                    if crate::rekor::verify_rekor_anchor(&e, a, k).ok {
+                        issuers.insert(a.issuer.clone());
+                    }
+                }
+            }
+            Some("RFC3161") => tsa += 1,
+            None | Some("SELF") => {
+                if resolve(a).is_some_and(|k| verify_signed_anchor(a, &k)) {
+                    issuers.insert(a.issuer.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+    let present = anchors
+        .iter()
+        .filter(|a| trusted(a) && a.daily_root == daily_root)
+        .map(|a| &a.issuer)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let need = match policy.quorum {
+        AnchorQuorum::AllMustAgree => policy.required_anchors.max(present),
+        AnchorQuorum::NOfM => policy.required_anchors,
+    };
+    let count = issuers.len();
+    let ok = count >= need && count >= 1;
+    AnchorQuorumResult {
+        ok,
+        verified_issuers: issuers.into_iter().collect(),
+        divergence: false,
+        reason: if ok {
+            None
+        } else {
+            Some(format!("anchor quorum not met ({count}/{need})"))
+        },
+        note: if tsa > 0 {
+            Some(format!("{tsa} RFC 3161 TSA anchor(s) over this root are present but not verifiable offline by this tool"))
+        } else {
+            None
+        },
+    }
 }
 
 #[cfg(test)]
@@ -395,7 +635,7 @@ mod tests {
     fn vectors() -> Value {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../mcp-schemas/vectors/ledger-vectors.json"
+            "/vectors/ledger-vectors.json"
         );
         serde_json::from_str(&std::fs::read_to_string(path).expect("read ledger vectors")).unwrap()
     }
