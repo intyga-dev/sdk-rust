@@ -60,11 +60,12 @@ fn shared_platform_and_authority_receipts() {
             ),
         };
         let receipt: ApprovalReceipt = serde_json::from_value(case["receipt"].clone()).unwrap();
-        let result = verify_approval_receipt_with_options(
-            &receipt,
-            &expected,
-            &options(&merged(&section["options"], &case["options"])),
-        );
+        let opts = options(&merged(&section["options"], &case["options"]));
+        let result = if e.get("agentContext").is_some() {
+            verify_agent_approval_receipt(&receipt, &expected, &e["agentContext"], &opts)
+        } else {
+            verify_approval_receipt_with_options(&receipt, &expected, &opts)
+        };
         assert_eq!(
             result.is_ok(),
             case["ok"].as_bool().unwrap(),
@@ -229,7 +230,7 @@ fn shared_canonical_authority_and_platform_builders() {
         let requirement: ApprovalRequirement =
             serde_json::from_value(i["requirement"].clone()).unwrap();
         let patterns: Vec<String> = serde_json::from_value(i["actionPatterns"].clone()).unwrap();
-        let got = canonical_agent_authority_payload(
+        let got = canonical_agent_authority_payload_with_parent(
             i["target"].as_str().unwrap(),
             &patterns,
             i["actionDescription"].as_str().unwrap(),
@@ -239,8 +240,21 @@ fn shared_canonical_authority_and_platform_builders() {
             i["nonce"].as_str().unwrap(),
             i["sealedAt"].as_str().unwrap(),
             i["expiresAt"].as_str().unwrap(),
+            i["parentReceiptHash"].as_str(),
         )
         .unwrap();
+        assert_eq!(got, item["expected"].as_str().unwrap());
+    }
+    for item in v["agentIntentPayloads"].as_array().unwrap() {
+        let i = &item["input"];
+        let requester: RequesterIdentity = serde_json::from_value(i["requester"].clone()).unwrap();
+        let requirement: ApprovalRequirement = serde_json::from_value(i["requirement"].clone()).unwrap();
+        let got = canonical_agent_intent_payload(
+            i["target"].as_str().unwrap(), i["actionType"].as_str().unwrap(),
+            i["actionDescription"].as_str().unwrap(), &i["params"], &requester,
+            &requirement, i["nonce"].as_str().unwrap(), i["expiresAt"].as_str().unwrap(),
+            &i["agentContext"],
+        ).unwrap();
         assert_eq!(got, item["expected"].as_str().unwrap());
     }
     for item in v["platformIntentPayloads"]["cases"].as_array().unwrap() {

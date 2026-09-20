@@ -53,6 +53,8 @@ pub struct AuthorizeOptions {
     pub action_type: Option<String>,
     /// The exact structured variables that will execute — displayed to the approver AND signed.
     pub params: Option<Value>,
+    /// RP-asserted continuity context for an AI agent; the PEP must recheck it at execution.
+    pub agent_context: Option<Value>,
     /// Optional override for the server's default challenge TTL, in seconds.
     pub timeout_seconds: Option<u64>,
 }
@@ -270,6 +272,9 @@ impl<T: Transport> Client<T> {
         });
         if let Some(action_type) = &opts.action_type {
             body["actionType"] = json!(action_type);
+        }
+        if let Some(context) = &opts.agent_context {
+            body["agentContext"] = context.clone();
         }
         if let Some(t) = opts.timeout_seconds {
             body["timeout"] = json!(t);

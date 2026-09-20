@@ -2,6 +2,10 @@
 
 Gate any high-risk backend action behind a real human approval. The primitive is uniform: **request a challenge → a human approves with a passkey or security key → poll until resolved** — the same client works for scripts, pipelines, and AI agents.
 
+The example below uses a human or `SERVICE` key. `AI_AGENT` keys must include
+`AuthorizeOptions.agent_context`; the executing service must independently check live configuration,
+the signed session sequence and aggregate, and a budget across sessions (DIV §4.3.6).
+
 This crate **bundles the offline verifier**, re-exporting it, so you can request an approval *and* independently verify the receipt without adding a second dependency.
 
 > Status: **not yet published** to crates.io. The standalone verifier also ships on its own as [`intyga-verify`](https://github.com/intyga-dev/verify-rust).

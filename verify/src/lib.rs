@@ -9,6 +9,7 @@ use p256::PublicKey;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use unicode_normalization::UnicodeNormalization;
 
 pub mod bundle;
 pub mod chain;
@@ -49,6 +50,130 @@ pub const MAX_DELEGATION_WINDOW_HOURS: i64 = 72;
 /// receipt at 3.6s of blocked verification and a 1.16 MB error string. Matches @intyga/verify.
 pub const MAX_WITNESSES: usize = 64;
 pub const SELF_CERTIFYING_DID_PREFIX: &str = "did:intyga:key:";
+
+fn agent_digest(value: Option<&Value>) -> bool {
+    value.and_then(Value::as_str).is_some_and(|s| {
+        s.strip_prefix("sha256:").is_some_and(|hex| {
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        })
+    })
+}
+
+fn agent_money(value: &Value) -> bool {
+    let Some(amount) = value.get("amount").and_then(Value::as_str) else {
+        return false;
+    };
+    let Some(currency) = value.get("currency").and_then(Value::as_str) else {
+        return false;
+    };
+    let mut parts = amount.split('.');
+    let integer = parts.next().unwrap_or("");
+    let fraction = parts.next();
+    let valid_integer = !integer.is_empty()
+        && integer.len() <= 30
+        && integer.bytes().all(|b| b.is_ascii_digit())
+        && (integer == "0" || !integer.starts_with('0'));
+    let valid_fraction = fraction
+        .is_none_or(|f| !f.is_empty() && f.len() <= 9 && f.bytes().all(|b| b.is_ascii_digit()));
+    valid_integer
+        && valid_fraction
+        && parts.next().is_none()
+        && currency.len() == 3
+        && currency.bytes().all(|b| b.is_ascii_uppercase())
+}
+
+fn agent_time_millis(value: &str) -> Option<i64> {
+    let b = value.as_bytes();
+    if b.len() != 24 || b[19] != b'.' || b[23] != b'Z' || !b[20..23].iter().all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    let seconds = parse_rfc3339_utc_secs(value)?;
+    Some(seconds * 1000 + value.get(20..23)?.parse::<i64>().ok()?)
+}
+
+fn validate_agent_context(
+    context: &Value,
+    exp: &str,
+    sig_alg: Option<&str>,
+) -> Result<i64, String> {
+    let action = context
+        .get("action")
+        .ok_or("invalid agent action reversibility")?;
+    let reversibility = action
+        .get("reversibility")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if reversibility != "reversible" && reversibility != "irreversible" {
+        return Err("invalid agent action reversibility".into());
+    }
+    let agent = context
+        .get("agent")
+        .ok_or("invalid agent identity or configuration digest")?;
+    let label = agent.get("label").and_then(Value::as_str).unwrap_or("");
+    if label.is_empty()
+        || label.encode_utf16().count() > 200
+        || !agent_digest(agent.get("configDigest"))
+    {
+        return Err("invalid agent identity or configuration digest".into());
+    }
+    let session = context
+        .get("session")
+        .ok_or("invalid agent session identity or sequence")?;
+    let id = session.get("id").and_then(Value::as_str).unwrap_or("");
+    if label.nfc().ne(label.chars()) || id.nfc().ne(id.chars()) {
+        return Err("agent labels and session identifiers must be NFC".into());
+    }
+    if !agent.get("delegatedBy").is_some_and(Value::is_null)
+        && !agent_digest(agent.get("delegatedBy"))
+    {
+        return Err("invalid parent authority digest".into());
+    }
+    let seq = session.get("seq").and_then(Value::as_str).unwrap_or("");
+    if !agent_digest(session.get("id"))
+        || seq.is_empty()
+        || seq.len() > 18
+        || seq.starts_with('0')
+        || !seq.bytes().all(|b| b.is_ascii_digit())
+    {
+        return Err("invalid agent session identity or sequence".into());
+    }
+    let prev = session.get("prev");
+    if (seq == "1") != prev.is_some_and(Value::is_null) || (seq != "1" && !agent_digest(prev)) {
+        return Err("invalid agent session predecessor".into());
+    }
+    let amount = action
+        .get("amount")
+        .ok_or("invalid agent monetary amount")?;
+    let aggregate = session
+        .get("aggregate")
+        .ok_or("invalid agent monetary amount")?;
+    if (!amount.is_null() && !agent_money(amount))
+        || (!aggregate.is_null() && !agent_money(aggregate))
+    {
+        return Err("invalid agent monetary amount".into());
+    }
+    if amount.is_null() != aggregate.is_null()
+        || (!amount.is_null() && amount.get("currency") != aggregate.get("currency"))
+    {
+        return Err("agent monetary amount and aggregate disagree".into());
+    }
+    let nbf = context.get("nbf").and_then(Value::as_str).unwrap_or("");
+    let from = agent_time_millis(nbf)
+        .ok_or("agent intent must use canonical UTC times within five minutes")?;
+    let to = agent_time_millis(exp)
+        .ok_or("agent intent must use canonical UTC times within five minutes")?;
+    if to <= from || to - from > 300_000 {
+        return Err("agent intent must use canonical UTC times within five minutes".into());
+    }
+    if reversibility == "irreversible" && sig_alg == Some("AUTO_APPROVED") {
+        return Err("irreversible agent action requires a human signature".into());
+    }
+    Ok(from)
+}
 pub fn self_certifying_did(public_key_b64: &str) -> Result<String, String> {
     let bytes = STANDARD
         .decode(public_key_b64)
@@ -203,6 +328,7 @@ pub struct VerifiedAgentAuthority {
     pub agent_did: String,
     pub target: String,
     pub action_patterns: Vec<String>,
+    pub parent_receipt_hash: Option<String>,
     pub nonce: String,
     pub signers: Vec<String>,
     pub sealed_at: String,
@@ -521,6 +647,28 @@ pub fn canonical_intent_payload(
     stable_stringify(&obj)
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn canonical_agent_intent_payload(
+    target: &str,
+    action_type: &str,
+    display: &str,
+    params: &Value,
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+    nonce: &str,
+    exp: &str,
+    context: &Value,
+) -> Result<String, String> {
+    let (req, rq) = canonical_common(requester, requirement);
+    stable_stringify(&serde_json::json!({
+        "v": DIV_VERSION, "type": DIV_INTENT_TYPE, "target": target,
+        "actionType": action_type, "display": display, "params": params,
+        "evidence": Value::Null, "requester": req, "requirement": rq,
+        "nonce": nonce, "action": context.get("action"), "agent": context.get("agent"),
+        "session": context.get("session"), "nbf": context.get("nbf"), "exp": exp,
+    }))
+}
+
 /// The requester + requirement projection shared by all three canonical builders.
 ///
 /// One definition rather than three copies: these bytes are the contract, and a field added to one
@@ -655,12 +803,40 @@ pub fn canonical_agent_authority_payload(
     sealed_at: &str,
     expires_at: &str,
 ) -> Result<String, String> {
+    canonical_agent_authority_payload_with_parent(
+        target,
+        action_patterns,
+        display,
+        agent_did,
+        requester,
+        requirement,
+        nonce,
+        sealed_at,
+        expires_at,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn canonical_agent_authority_payload_with_parent(
+    target: &str,
+    action_patterns: &[String],
+    display: &str,
+    agent_did: &str,
+    requester: &RequesterIdentity,
+    requirement: &ApprovalRequirement,
+    nonce: &str,
+    sealed_at: &str,
+    expires_at: &str,
+    parent_receipt_hash: Option<&str>,
+) -> Result<String, String> {
     let (req, rq) = canonical_common(requester, requirement);
     let mut patterns = action_patterns.to_vec();
     patterns.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
     stable_stringify(&serde_json::json!({
         "v": DIV_VERSION, "type": DIV_AGENT_AUTHORITY_TYPE, "target": target,
         "actionPatterns": patterns, "display": display, "agent": { "did": agent_did },
+        "parentReceiptHash": parent_receipt_hash,
         "requester": req, "requirement": rq, "nonce": nonce,
         "sealedAt": sealed_at, "expiresAt": expires_at,
     }))
@@ -866,6 +1042,26 @@ pub fn verify_approval_receipt_with_options(
     expected: &Expected,
     opts: &VerifyOptions,
 ) -> Result<Vec<String>, String> {
+    verify_approval_receipt_inner(receipt, expected, opts, None)
+}
+
+/// Agent-specific entry point requiring RP-retained context rather than trusting the receipt's
+/// own agent identity, configuration digest, session head or aggregate.
+pub fn verify_agent_approval_receipt(
+    receipt: &ApprovalReceipt,
+    expected: &Expected,
+    context: &Value,
+    opts: &VerifyOptions,
+) -> Result<Vec<String>, String> {
+    verify_approval_receipt_inner(receipt, expected, opts, Some(context))
+}
+
+fn verify_approval_receipt_inner(
+    receipt: &ApprovalReceipt,
+    expected: &Expected,
+    opts: &VerifyOptions,
+    agent_context: Option<&Value>,
+) -> Result<Vec<String>, String> {
     if receipt.canonical_payload.is_empty() {
         return Err("missing canonicalPayload".to_string());
     }
@@ -915,9 +1111,37 @@ pub fn verify_approval_receipt_with_options(
         .as_ref()
         .ok_or("receipt missing requester")?;
 
-    let expires_at = canonical_str_field(&receipt.canonical_payload, "expiresAt")
-        .filter(|s| !s.is_empty())
-        .ok_or("receipt missing expiresAt")?;
+    let agent_intent = probe.get("agent").is_some();
+    if agent_intent != agent_context.is_some() {
+        return Err("agent receipt requires independently asserted PEP context".into());
+    }
+    let expires_at = canonical_str_field(
+        &receipt.canonical_payload,
+        if agent_intent { "exp" } else { "expiresAt" },
+    )
+    .filter(|s| !s.is_empty())
+    .ok_or("receipt missing expiration")?;
+    if agent_intent {
+        let from_ms = validate_agent_context(
+            agent_context.expect("checked above"),
+            &expires_at,
+            receipt.sig_alg.as_deref(),
+        )
+        .map_err(|problem| format!("invalid independently asserted agent context: {problem}"))?;
+        if agent_context
+            .and_then(|c| c.get("agent"))
+            .and_then(|a| a.get("delegatedBy"))
+            .is_some_and(|value| !value.is_null())
+        {
+            return Err(
+                "delegated agent receipt requires a trusted root-to-leaf authority chain".into(),
+            );
+        }
+        let (now, skew) = evaluation_time(opts);
+        if from_ms > (now + skew) * 1000 {
+            return Err("agent approval is not valid yet".into());
+        }
+    }
 
     // The requirement is part of the SIGNED bytes, so reading it back from the payload is not
     // circular: a forged value changes the string and fails the byte comparison below.
@@ -1042,6 +1266,18 @@ pub fn verify_approval_receipt_with_options(
             &payload_nonce,
             &challenged_at,
             &expires_at,
+        )
+    } else if let Some(context) = agent_context {
+        canonical_agent_intent_payload(
+            &expected.target,
+            &expected.action_type,
+            &receipt.action_description,
+            &expected.params,
+            requester,
+            &requirement,
+            &payload_nonce,
+            &expires_at,
+            context,
         )
     } else {
         canonical_intent_payload(
@@ -1411,6 +1647,27 @@ pub fn verify_agent_authority(
         .into_iter()
         .map(String::from)
         .collect::<Vec<_>>();
+    let parent_value = value
+        .get("parentReceiptHash")
+        .ok_or("authority is missing parentReceiptHash")?;
+    let parent_receipt_hash = if parent_value.is_null() {
+        None
+    } else {
+        let digest = parent_value
+            .as_str()
+            .ok_or("authority has invalid parentReceiptHash")?;
+        let hex = digest
+            .strip_prefix("sha256:")
+            .ok_or("authority has invalid parentReceiptHash")?;
+        if hex.len() != 64
+            || !hex
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        {
+            return Err("authority has invalid parentReceiptHash".into());
+        }
+        Some(digest.to_string())
+    };
     let sealed_at = value
         .get("sealedAt")
         .and_then(Value::as_str)
@@ -1460,7 +1717,7 @@ pub fn verify_agent_authority(
         .get("nonce")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let recomputed = canonical_agent_authority_payload(
+    let recomputed = canonical_agent_authority_payload_with_parent(
         &expected.target,
         &patterns,
         &receipt.action_description,
@@ -1470,6 +1727,7 @@ pub fn verify_agent_authority(
         nonce,
         sealed_at,
         expires_at,
+        parent_receipt_hash.as_deref(),
     )?;
     if recomputed != receipt.canonical_payload {
         return Err("target/agent/actionPatterns do not match what was sealed".into());
@@ -1542,6 +1800,7 @@ pub fn verify_agent_authority(
         agent_did: expected.agent_did.clone(),
         target: expected.target.clone(),
         action_patterns: unique,
+        parent_receipt_hash,
         nonce: nonce.into(),
         signers: verified.into_iter().collect(),
         sealed_at: sealed_at.into(),

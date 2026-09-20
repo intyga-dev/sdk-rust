@@ -22,3 +22,4 @@ base64 = "0.21"
 sha2 = "0.10"
 ed25519-dalek = { version = "2", features = ["pkcs8"] }
 rsa = { version = "0.9", features = ["sha2"] }
+unicode-normalization = "0.1"

@@ -1,49 +1,54 @@
 {
   "version": 1,
-  "generated": "2026-09-18T10:04:46.686Z",
+  "generated": "2026-09-20T12:34:33.041Z",
   "note": "Executable cross-language verifier parity cases. Private signing keys are intentionally omitted.",
   "mustAssert": "Besides `ok`, assert every optional field present on a case: signers, reasonIncludes, actionPatterns, verificationLevel, properties, total, contentVerified, commitmentOnly, brokenAt, unchained, verifiedCount.",
   "keys": [
     {
       "id": "subject",
       "did": "did:intyga:subject:42",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEBZqrnWRgpqNnanaiRW9gx9mjHUj040Lala991GaoQM6uPz3p+dOF4QFRHGcoqg9rKRZQf5fTbu1KX3cctZSFXw==",
-      "coseB64": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+8M5BJ8nDx1rQALf3WAler4DnlyDO1N7lK/PKsNH4BZN30u1X+K4bSGKkP4L0Z9o9W/ZIbrdYvpSoJc+DP6HFw==",
+      "coseB64": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc="
     },
     {
       "id": "alice",
       "did": "did:intyga:alice",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA=="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ=="
     },
     {
       "id": "bob",
       "did": "did:intyga:bob",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w=="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug=="
     },
     {
       "id": "mallory",
       "did": "did:intyga:mallory",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEinDxlhgPEk/eLTUZrS8FvqDXFs429vs8jfH91Iwl6KSX5lLuQU+8K/ZqmIh/+icGn/nSy9bw26N8P8vhErlS6g=="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKxPpcci0L20nD16lrlmQU/W5rXuZ5zB9j41W5pgXvbdvmJZRRIoUdCfwKwyYXU7VM1jjbDH/tskKO1PNjfXYHw=="
     },
     {
       "id": "anchor-es256",
       "issuer": "https://anchor-a.example",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELE/tgymPZPLD+jstOUiUfzcqlK9/ScSVV6pkv0TDTfHgjIuoBAvM2DqI2+dxmYvFaf//0c6ykp0s490ZUbokxw=="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoDAMm28zqsYssieJPETOIqYKN01Cqv+N7pMnq+e4r8T/Nhh7jlWMvG1+B9J1SyEdMtb5C2E9CzAm7HlD9I/2Lg=="
     },
     {
       "id": "anchor-ed25519",
       "issuer": "https://anchor-b.example",
-      "spkiB64": "MCowBQYDK2VwAyEAQPiorOQmHZ4h4Eer2xq000U9A4v8M0LqmLsqpEGHehk="
+      "spkiB64": "MCowBQYDK2VwAyEAYR7bKzQyrNapz/jw2WPWhCOFsvuRkw+3nuZj7YEpzpA="
     },
     {
       "id": "anchor-rsa-pss",
       "issuer": "https://anchor-c.example",
-      "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm39qE65XfACQ1wnbHjYpi6Qtg5QLv0QHZqZ43BvPE3l+OOkbHBFvJkz+aQqh+omwaQe90MVC+Zw0wt5dfpYF5L4AI7pSD6DwMIHAGZcAew9ly6kpdG2gIt33jI3/+LsnhIQv37EHUDRi1ciWJk1DaniFODzOpNWi0Y02wEXb2RsFZzIDwn5UpI8x9TgpsEjOsM+g9qPBDDQWSSblhMijyDE6qnPg9dRQH6ZSD0OWvyLe2ITdi4i5Sskrb6rFlBhXCKmgrEAqxsQU7SSOdQxKVZ26drz0d5GVfRtF6Cvn78SZLg0B+7zX+UIgX9qQM3VZI1BlcTOZrczNnkKSw6lcPQIDAQAB"
+      "spkiB64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2GqxkQqsb7vjV2YDI521ugS+OiKceIAFCHscp5uczTQg3qMqxO6YOlImkrvrMaqHbt/V4fnuLGinWcm46+i+SDsiavLMnRROOpJ79IAObvfRjmeTN2TwFbiUNlbpMoUX+pPFc1ax2CIpY2GinrDIgqn2AcvHO4yrXgzl7bfM/lTISf9zG+HahiGQfEygnhl3Ngz9lbYQvD35mgTr7Hb3juyvq3nYrastwBF7NC4VOg5JOU9/JJdeTbPXK+GY417Yv+31hqizQp0GdYJ8+8JfS/IB/uOXtA5Ex9Ao+6z4/CglaI6E7qWevwe128JJViF16r3s6C1W4uxMukJXKMZpEwIDAQAB"
     },
     {
       "id": "rekor",
       "issuer": "https://rekor.sigstore.dev",
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEf4KToYj9R4pRLi3/B5AxXAzmtu9v35WAgjU0slepBH9AUYbjgaEhQJGCJvpv3FEZFWpnh2Np7tuUjiFfdn3Lag=="
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfB7KrTH6iPBhmp6YIeHofAauhhGrbwGM1acQ6fG/co0tagm0K7W6eLxURQDK6yY7vkOzOqXFDtmLKd0eD7asJQ=="
+    },
+    {
+      "id": "malformed-agent-signer",
+      "did": "did:intyga:alice",
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEq43HgEN6j3cP+4L1CXkPhTL5vMzACDWKji4dyOyxGBE2pchOYsGg76BQyIq6WDYkf4Si4kVy4qMDjYXq2YBvFA=="
     }
   ],
   "approvals": {
@@ -79,15 +84,273 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "F4wnrTXqErAP0flTjUH07oRT6tZ2gEGc7RxoLRlkuTUrZJmXx29jSSQsg3dyDEOx3WcqAwn24Z+tgE4FuNlvUw==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "uhNAWTmljgcwB7QF0dXfGGwqqFCf0vP16KjuO0KpuHzTocYFo44XUFthOTn0KsmJz88Nusc3CQvmnMueHeKRoA==",
           "sigAlg": "ES256",
           "verificationCode": "9492-3530"
         },
         "ok": true,
         "signers": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ=="
         ]
+      },
+      {
+        "name": "valid-agent-approval",
+        "receipt": {
+          "canonicalPayload": "{\"action\":{\"amount\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"reversibility\":\"irreversible\"},\"actionType\":\"payments.wire\",\"agent\":{\"configDigest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"delegatedBy\":null,\"label\":\"Payments agent\"},\"display\":\"Wire USD 4,200\",\"evidence\":null,\"exp\":\"2026-09-01T12:05:00.000Z\",\"nbf\":\"2026-09-01T12:00:00.000Z\",\"nonce\":\"parity-approval-nonce\",\"params\":{\"amount\":4200,\"currency\":\"USD\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent:payments\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"session\":{\"aggregate\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"id\":\"sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1\",\"prev\":null,\"seq\":\"1\"},\"target\":\"prod-payments\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire USD 4,200",
+          "params": {
+            "amount": 4200,
+            "currency": "USD"
+          },
+          "requester": {
+            "did": "did:intyga:agent:payments",
+            "attestation": null
+          },
+          "signerDid": "did:intyga:alice",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "JygPYZNvPt//MSBy9wB7kd3vAiqFabb3LNSwmXW39C0V1jyrEFL3rqfv1rmnejEVCuOKJuEg1JbRgMtDWmXuJg==",
+          "sigAlg": "ES256",
+          "verificationCode": "842F-3C08"
+        },
+        "expected": {
+          "agentContext": {
+            "action": {
+              "reversibility": "irreversible",
+              "amount": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "agent": {
+              "label": "Payments agent",
+              "configDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "delegatedBy": null
+            },
+            "session": {
+              "id": "sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1",
+              "seq": "1",
+              "prev": null,
+              "aggregate": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "nbf": "2026-09-01T12:00:00.000Z"
+          }
+        },
+        "ok": true,
+        "signers": [
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ=="
+        ]
+      },
+      {
+        "name": "agent-sequence-without-predecessor-refused",
+        "receipt": {
+          "canonicalPayload": "{\"action\":{\"amount\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"reversibility\":\"irreversible\"},\"actionType\":\"payments.wire\",\"agent\":{\"configDigest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"delegatedBy\":null,\"label\":\"Payments agent\"},\"display\":\"Wire USD 4,200\",\"evidence\":null,\"exp\":\"2026-09-01T12:05:00.000Z\",\"nbf\":\"2026-09-01T12:00:00.000Z\",\"nonce\":\"parity-approval-nonce\",\"params\":{\"amount\":4200,\"currency\":\"USD\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent:payments\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"session\":{\"aggregate\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"id\":\"sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1\",\"prev\":null,\"seq\":\"2\"},\"target\":\"prod-payments\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire USD 4,200",
+          "params": {
+            "amount": 4200,
+            "currency": "USD"
+          },
+          "requester": {
+            "did": "did:intyga:agent:payments",
+            "attestation": null
+          },
+          "signerDid": "did:intyga:alice",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEq43HgEN6j3cP+4L1CXkPhTL5vMzACDWKji4dyOyxGBE2pchOYsGg76BQyIq6WDYkf4Si4kVy4qMDjYXq2YBvFA==",
+          "signature": "GiN4SWrxc0BxZq4+VkPp3z7s1xbNpEcTZHelLqbxsj8SOvOMeBjLIGO0gWyQbR2EgpZLI8U7xeWlYIQy2IN5MA==",
+          "sigAlg": "ES256",
+          "verificationCode": "55D0-B861"
+        },
+        "expected": {
+          "agentContext": {
+            "action": {
+              "reversibility": "irreversible",
+              "amount": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "agent": {
+              "label": "Payments agent",
+              "configDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "delegatedBy": null
+            },
+            "session": {
+              "id": "sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1",
+              "seq": "2",
+              "prev": null,
+              "aggregate": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "nbf": "2026-09-01T12:00:00.000Z"
+          },
+          "approverKeyIds": [
+            "malformed-agent-signer"
+          ]
+        },
+        "ok": false,
+        "reasonIncludes": "invalid agent session predecessor"
+      },
+      {
+        "name": "delegated-agent-needs-authority-chain",
+        "receipt": {
+          "canonicalPayload": "{\"action\":{\"amount\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"reversibility\":\"irreversible\"},\"actionType\":\"payments.wire\",\"agent\":{\"configDigest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"delegatedBy\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"label\":\"Payments agent\"},\"display\":\"Wire USD 4,200\",\"evidence\":null,\"exp\":\"2026-09-01T12:05:00.000Z\",\"nbf\":\"2026-09-01T12:00:00.000Z\",\"nonce\":\"parity-approval-nonce\",\"params\":{\"amount\":4200,\"currency\":\"USD\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent:payments\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"session\":{\"aggregate\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"id\":\"sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1\",\"prev\":null,\"seq\":\"1\"},\"target\":\"prod-payments\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire USD 4,200",
+          "params": {
+            "amount": 4200,
+            "currency": "USD"
+          },
+          "requester": {
+            "did": "did:intyga:agent:payments",
+            "attestation": null
+          },
+          "signerDid": "did:intyga:alice",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "lbeURVeuhm29du43JMZmq04h75GT74j4xUy+dx/CzZhFFD53yH3JVBcU26MSu5JfTWufgPmUjjT+h93v+ly/Ag==",
+          "sigAlg": "ES256",
+          "verificationCode": "C1CD-27BC"
+        },
+        "expected": {
+          "agentContext": {
+            "action": {
+              "reversibility": "irreversible",
+              "amount": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "agent": {
+              "label": "Payments agent",
+              "configDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "delegatedBy": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "session": {
+              "id": "sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1",
+              "seq": "1",
+              "prev": null,
+              "aggregate": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "nbf": "2026-09-01T12:00:00.000Z"
+          }
+        },
+        "ok": false,
+        "reasonIncludes": "trusted root-to-leaf authority chain"
+      },
+      {
+        "name": "agent-config-drift",
+        "receipt": {
+          "canonicalPayload": "{\"action\":{\"amount\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"reversibility\":\"irreversible\"},\"actionType\":\"payments.wire\",\"agent\":{\"configDigest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"delegatedBy\":null,\"label\":\"Payments agent\"},\"display\":\"Wire USD 4,200\",\"evidence\":null,\"exp\":\"2026-09-01T12:05:00.000Z\",\"nbf\":\"2026-09-01T12:00:00.000Z\",\"nonce\":\"parity-approval-nonce\",\"params\":{\"amount\":4200,\"currency\":\"USD\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent:payments\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"session\":{\"aggregate\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"id\":\"sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1\",\"prev\":null,\"seq\":\"1\"},\"target\":\"prod-payments\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire USD 4,200",
+          "params": {
+            "amount": 4200,
+            "currency": "USD"
+          },
+          "requester": {
+            "did": "did:intyga:agent:payments",
+            "attestation": null
+          },
+          "signerDid": "did:intyga:alice",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "JygPYZNvPt//MSBy9wB7kd3vAiqFabb3LNSwmXW39C0V1jyrEFL3rqfv1rmnejEVCuOKJuEg1JbRgMtDWmXuJg==",
+          "sigAlg": "ES256",
+          "verificationCode": "842F-3C08"
+        },
+        "expected": {
+          "agentContext": {
+            "action": {
+              "reversibility": "irreversible",
+              "amount": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "agent": {
+              "label": "Payments agent",
+              "configDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+              "delegatedBy": null
+            },
+            "session": {
+              "id": "sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1",
+              "seq": "1",
+              "prev": null,
+              "aggregate": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "nbf": "2026-09-01T12:00:00.000Z"
+          }
+        },
+        "ok": false,
+        "reasonIncludes": "do not match"
+      },
+      {
+        "name": "agent-expired",
+        "receipt": {
+          "canonicalPayload": "{\"action\":{\"amount\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"reversibility\":\"irreversible\"},\"actionType\":\"payments.wire\",\"agent\":{\"configDigest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"delegatedBy\":null,\"label\":\"Payments agent\"},\"display\":\"Wire USD 4,200\",\"evidence\":null,\"exp\":\"2026-09-01T12:05:00.000Z\",\"nbf\":\"2026-09-01T12:00:00.000Z\",\"nonce\":\"parity-approval-nonce\",\"params\":{\"amount\":4200,\"currency\":\"USD\"},\"requester\":{\"attestation\":null,\"did\":\"did:intyga:agent:payments\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":1,\"signerClass\":\"human\"},\"session\":{\"aggregate\":{\"amount\":\"4200\",\"currency\":\"USD\"},\"id\":\"sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1\",\"prev\":null,\"seq\":\"1\"},\"target\":\"prod-payments\",\"type\":\"div-intent-verification\",\"v\":1}",
+          "target": "prod-payments",
+          "actionType": "payments.wire",
+          "actionDescription": "Wire USD 4,200",
+          "params": {
+            "amount": 4200,
+            "currency": "USD"
+          },
+          "requester": {
+            "did": "did:intyga:agent:payments",
+            "attestation": null
+          },
+          "signerDid": "did:intyga:alice",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "JygPYZNvPt//MSBy9wB7kd3vAiqFabb3LNSwmXW39C0V1jyrEFL3rqfv1rmnejEVCuOKJuEg1JbRgMtDWmXuJg==",
+          "sigAlg": "ES256",
+          "verificationCode": "842F-3C08"
+        },
+        "expected": {
+          "agentContext": {
+            "action": {
+              "reversibility": "irreversible",
+              "amount": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "agent": {
+              "label": "Payments agent",
+              "configDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "delegatedBy": null
+            },
+            "session": {
+              "id": "sha256:7826a1ee10082e32e0fa779f569e7f7e6fda7c6fceaea96e4570ba72599c8bc1",
+              "seq": "1",
+              "prev": null,
+              "aggregate": {
+                "amount": "4200",
+                "currency": "USD"
+              }
+            },
+            "nbf": "2026-09-01T12:00:00.000Z"
+          }
+        },
+        "options": {
+          "asOf": "2026-09-01T12:10:00.000Z"
+        },
+        "ok": false,
+        "reasonIncludes": "expired"
       },
       {
         "name": "valid-es256-signature-relabeled-unknown",
@@ -105,8 +368,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "F4wnrTXqErAP0flTjUH07oRT6tZ2gEGc7RxoLRlkuTUrZJmXx29jSSQsg3dyDEOx3WcqAwn24Z+tgE4FuNlvUw==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "uhNAWTmljgcwB7QF0dXfGGwqqFCf0vP16KjuO0KpuHzTocYFo44XUFthOTn0KsmJz88Nusc3CQvmnMueHeKRoA==",
           "sigAlg": "UNKNOWN",
           "verificationCode": "9492-3530"
         },
@@ -129,8 +392,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:mallory",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "Tnd3j04eDlbIXWoGfsgT7KVm+WBnEBkyy5luPRlu6qDDuYrpcu3BqAldnojAVdfOPEV6PrjEyxQl1xJ7ZXlJ1g==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "hrbY/L+1AXKnZCynk39u8LdDabuwzffnskXiXWtvAOEwlBQ4Humzovs1wViqBt8dRXVOLgnwEpAijLTbrm0hRw==",
           "sigAlg": "ES256",
           "verificationCode": "5C45-74B6"
         },
@@ -153,14 +416,14 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "F4wnrTXqErAP0flTjUH07oRT6tZ2gEGc7RxoLRlkuTUrZJmXx29jSSQsg3dyDEOx3WcqAwn24Z+tgE4FuNlvUw==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "uhNAWTmljgcwB7QF0dXfGGwqqFCf0vP16KjuO0KpuHzTocYFo44XUFthOTn0KsmJz88Nusc3CQvmnMueHeKRoA==",
           "sigAlg": "ES256",
           "verificationCode": "9492-3530"
         },
         "ok": true,
         "signers": [
-          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA=="
+          "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ=="
         ]
       },
       {
@@ -179,8 +442,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "9VxpyWG3YC9B7BbWwJ5ts6FZpCdFK8R/HkBVpS+WviCXPiGoJNwXN4ulPhxvjTkuAm4ytnH3siqR4Hwr+7W8iA==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "5Cmu0hLt4uxfO0Vi2YmeBpah/C6gxo8mf0drP6oY1yJy9+kv4fKouILXMiBPnPI0KIu07v1e5KgGAiwhpt/qQw==",
           "sigAlg": "ES256",
           "verificationCode": "B1C5-1079"
         },
@@ -203,8 +466,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "74a5JV6UVk+zLhnBl2V88IV1ns7qAXCstqTnu3cKj4T+bGpqiHYVrwM1aD41Zoi8yX4sN+tJB5ry8Lb5O75VkQ==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "p9zcvMdaevCBp8TAUzGBdi6NOw8kD/WEfeU6Ii0ICZh3SlTXbXir1uc3CxoJzKZwrKuS8jHz6dSwrHJyrgjRzw==",
           "sigAlg": "ES256",
           "verificationCode": "C1C9-0DC6"
         },
@@ -227,8 +490,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "pT7XGZjJ0pJq6DjwiDOue9P4StGPHzLasWV+NnoWwwLvlDp3+fBujWAqAoUEjUEEilMxoWlJhplDRUB3Y4iCZg==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "jJIv0+x8Zi5Aar9dVq3uy9x4ljIN/Ml3L3HBE+jyVJMsLmpzVZGk5yc9XKzOzST+LZE5UROVQuKUBcG+i5dKlA==",
           "sigAlg": "ES256",
           "verificationCode": "404F-4F2C"
         },
@@ -251,8 +514,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "dZujHb6Tyi0seZXRWRfm4qvItxr8/23/oVfVjafIssBAXyc5sJ4PtlLiT1wlRG76FgxY50tb7HXeksuOALPK+Q==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "W47NgOrZdu7Pg6zpf0oaNB/rTQekM6UB6ux/9UiUrKZNWhahAS0eGEITPGcH4+zwvwXPuwoP9XC7G5oszn31fg==",
           "sigAlg": "ES256",
           "verificationCode": "847D-DED9"
         },
@@ -275,8 +538,8 @@
             "attestation": null
           },
           "signerDid": "did:intyga:alice",
-          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-          "signature": "F4wnrTXqErAP0flTjUH07oRT6tZ2gEGc7RxoLRlkuTUrZJmXx29jSSQsg3dyDEOx3WcqAwn24Z+tgE4FuNlvUw==",
+          "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+          "signature": "uhNAWTmljgcwB7QF0dXfGGwqqFCf0vP16KjuO0KpuHzTocYFo44XUFthOTn0KsmJz88Nusc3CQvmnMueHeKRoA==",
           "sigAlg": "ES256",
           "verificationCode": "9492-3530"
         },
@@ -311,8 +574,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -320,7 +583,7 @@
         },
         "ok": true,
         "signers": [
-          "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8="
+          "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc="
         ]
       },
       {
@@ -334,8 +597,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -357,8 +620,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIQC90M93B0kZLZtX23atlVuWMNFJKzpoRSXLjMVCq3WePAIgL88zMtlt+UVimnUYzOp4ALjl50I+HB5tzFy1Ql/kmU8=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEQCIBEhpKk0/67E3R6AuEC3wAp5xf5kJJXDEQ0YM2QJAL6PAiAyY9kb9237sdmfJ2G1de1D9+4NSf/xuleXU7nIJsalcA==",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL2V2aWwuZXhhbXBsZSIsImNyb3NzT3JpZ2luIjpmYWxzZX0=",
@@ -377,8 +640,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIBptB3Q90KMXZ7p6pk8NtmToqkTyXIgi4WQK/Cae+LtMAiEA2nRbQBCVBmQbwrKGyXEkLluEV5fTv1Ekl7bxqOsFTxA=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQDfE18rCrew4ep2/wq5YTV9++/byqGEExDAZbFt3BrGXQIhAJj2OpidFP+MrXnUykt+wU/6Hl9dX8A9esabBWUlZLd3",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "nBgN4M1pnueIl8R8/bPn7h11kG4xt3RqR0fepTaQmDcFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -397,8 +660,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -420,8 +683,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -443,8 +706,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "WEBAUTHN",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -466,8 +729,8 @@
           },
           "nonce": "parity-platform-nonce",
           "signerDid": "did:intyga:subject:42",
-          "signerPublicKey": "pQECAyYgASFYIAWaq51kYKajZ2p2okVvYMfZox1I9ONC2pWvfdRmqEDOIlggrj896fnTheEBURxnKKoPaykWUH+X027tSl93HLWUhV8=",
-          "signature": "MEUCIEx6twZZpC2Wsplt3PBde3AjrYlGq40aALQ75pZ3GysDAiEA8CBWc4/yz1DY/T2GRmfuM6vmPWlDTEi59PrBL2K6/ZY=",
+          "signerPublicKey": "pQECAyYgASFYIPvDOQSfJw8da0AC391gJXq+A55cgztTe5SvzyrDR+AWIlggTd9LtV/iuG0hipD+C9GfaPVv2SG63WL6UqCXPgz+hxc=",
+          "signature": "MEYCIQCiPuIN6wL+Zqp4vW2skj/04kpirbL+2tL6KsLzpALo2gIhAI6W2tBltgP40Wz/utm+Z3WDvK8hJXYKjki5zzwIS7cd",
           "sigAlg": "ES256",
           "authenticatorData": "sivkLUTZ98fgChDu7ojCbAa9tgXWcAqeNzZLprGoXBUFAAAAAA==",
           "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiZXlKbGVIQnBjbVZ6UVhRaU9pSXlNREkzTFRBNUxUQXhWREV5T2pBd09qQXdMakF3TUZvaUxDSm9ZWE5vUVd4bklqb2lVMGhCTFRJMU5pSXNJbTV2Ym1ObElqb2ljR0Z5YVhSNUxYQnNZWFJtYjNKdExXNXZibU5sSWl3aWNHRjViRzloWkVoaGMyZ2lPaUprTjJJeU5EQTJPVEV4TlRRd056ZGhNek0wWkdGa09HWTJaak0yTW1abE1tTTJOak0yTlRneE5qa3hNell3WlRsaVlqbGlNRGN4TURobU16azFNVEUySWl3aWNuQkpaQ0k2SW5Cc1lYUm1iM0p0TG1WNFlXMXdiR1VpTENKemFXZHVaV1JCZENJNklqSXdNall0TURrdE1ERlVNVEk2TURBNk1EQXVNREF3V2lJc0luTjFZbXBsWTNRaU9uc2laWGgwWlhKdVlXeEpaQ0k2SW1OMWMzUXRORElpZlN3aWRIbHdaU0k2SW1ScGRpMXdiR0YwWm05eWJTMXBiblJsYm5RaUxDSjJJam94ZlEiLCJvcmlnaW4iOiJodHRwczovL3BsYXRmb3JtLmV4YW1wbGUiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
@@ -497,7 +760,7 @@
       {
         "name": "valid-two-person-authority",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -507,18 +770,18 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "K/dtNUt4ig7F2dqlnxbfhhs7G9FgZVlT051XIyNxxF/h4z3SdGUnx6Fol6damfGfcNxCgu8wPoiZhwCKsVBFwg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "QIY9yIWV+c95xlpnjBKboYBCEj65ivtcvfuOOo+j6PyHJU0nWchq3nJxb0SX+39rWQq0+vyMDxmlY4ruhX3DrQ==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "Jd12BWd5WJbguYYMJxCzusNqLvfnN6UnRlm9zrNlQO2+ZqJP/Z08ewtbkFFKGwX0ZQmblW96s2PDVXLCDzmIZA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "kqHu566VVYJXuN2bI4ZOy5nnRqF86Pv4GdX0Ot+3RvEwbpB1MzHL87wEYAFmrSioidan9vqLEEPcTeFhrgkwYw==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "ok": true,
         "signers": [
@@ -533,7 +796,7 @@
       {
         "name": "unknown-witness-algorithm-refused",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -543,25 +806,25 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "K/dtNUt4ig7F2dqlnxbfhhs7G9FgZVlT051XIyNxxF/h4z3SdGUnx6Fol6damfGfcNxCgu8wPoiZhwCKsVBFwg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "QIY9yIWV+c95xlpnjBKboYBCEj65ivtcvfuOOo+j6PyHJU0nWchq3nJxb0SX+39rWQq0+vyMDxmlY4ruhX3DrQ==",
               "sigAlg": "UNKNOWN"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "Jd12BWd5WJbguYYMJxCzusNqLvfnN6UnRlm9zrNlQO2+ZqJP/Z08ewtbkFFKGwX0ZQmblW96s2PDVXLCDzmIZA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "kqHu566VVYJXuN2bI4ZOy5nnRqF86Pv4GdX0Ot+3RvEwbpB1MzHL87wEYAFmrSioidan9vqLEEPcTeFhrgkwYw==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "ok": false
       },
       {
         "name": "key-only-authority-without-four-eyes",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -571,18 +834,18 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "K/dtNUt4ig7F2dqlnxbfhhs7G9FgZVlT051XIyNxxF/h4z3SdGUnx6Fol6damfGfcNxCgu8wPoiZhwCKsVBFwg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "QIY9yIWV+c95xlpnjBKboYBCEj65ivtcvfuOOo+j6PyHJU0nWchq3nJxb0SX+39rWQq0+vyMDxmlY4ruhX3DrQ==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "Jd12BWd5WJbguYYMJxCzusNqLvfnN6UnRlm9zrNlQO2+ZqJP/Z08ewtbkFFKGwX0ZQmblW96s2PDVXLCDzmIZA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "kqHu566VVYJXuN2bI4ZOy5nnRqF86Pv4GdX0Ot+3RvEwbpB1MzHL87wEYAFmrSioidan9vqLEEPcTeFhrgkwYw==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "expected": {
           "approverKeyIds": [
@@ -595,7 +858,7 @@
       {
         "name": "four-eyes-requires-identity-trust",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:alice\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:alice\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":true,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -605,18 +868,18 @@
           "signatures": [
             {
               "signerDid": "did:intyga:mallory",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "wtooFIx+xaHp0CMNutDwujpamU+GDRZMNWsakFt6gXM07uu8YV+Ri0ixfaiJnQeYqdNfew3I78m+g426caNCDw==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "bU5NMSGyrvGH6bbL9NktuUywqkEWieJJjLye0ISIn1+dM3G2UAxVwDbdc2wF/REN5yuhimVmaByZx5X0xrG38w==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "RPmeknJIrpoU+BddTPaeoMcKhnyfmU58NKXYoc4PNYBAA0o2v/4hguUUSQcBB4UqIcnszekVXS2oSpeTAfY2Eg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "MbPc1UdSbWQ8KXFBy8UhE+Srj0tIRJzrN9o3N3cHC/P8omDLOk12KJXtLCKvnoXuyc3fEOEOiUCoM3tBVL6gzA==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "4104-B1D5"
+          "verificationCode": "78BA-94DD"
         },
         "expected": {
           "approverKeyIds": [
@@ -629,7 +892,7 @@
       {
         "name": "duplicate-witness-cannot-satisfy-quorum",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -639,25 +902,25 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "HrOBa+0k1S6m5pimC6aPKkvKcbRt0yzOoSWC9KEWfEKgZ2G/tjR2nufi/2qbif3X4fvBbGzyiNaFFXOQjn2xrg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "ul4UV1boji+NenhipV64qZlmr017Duky/G2PWMy3c4RrFJdgHxwHEbh25Hlhs7+ZdkSEsngO1s/iGNhIKztodA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "7uaXuqFXPThYgmnQUXOEqZiqMqOq/6VBpnlonHtVBa1VRNpSAJEghNNyzXcPLBE+h87C9PSLXV5rZSrJqLpY3Q==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "XExoD4BwVvlYvlRjLS7Ju1cE81facJbwSpbrSkBGQ8KKOlU+gBZZoR1g2FE7kACgr8K9oxJ8kTfKy6e7nLJsUw==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "ok": false
       },
       {
         "name": "insufficient-quorum",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -667,19 +930,19 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "S2btQEoFSOsIUVjui3a5Qwvo03dg3O1mP7KE2GEJzhBLBzT71E22BWE97htTmTiqvEvsMKB3zPuaq39n5v32Ww==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "7KaUWaVljA5Qx4vq8mIZFtCY3OCoiHLSqh4Dgxw5F9yma78RQU606O6AQg3hV4UpVrAAlGC0YOX/+3nMYXJSDg==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "ok": false
       },
       {
         "name": "untrusted-signer-does-not-count",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -689,25 +952,25 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "FDrdmw+N7uPpT8iGRY4Bqnh+rxyQrdI7OZjDO1MA1T7qJ37MODBu9KYJH0aNuSnmzEl6g+sY7EiD1D+z7sXbhA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "ycMu9b3loJabSmbcNyjZxWPHIs94kgKcsOnrJ9Sy/NtrFY684WKz64aVZ21xBhEFiMYbK0nTUcJK7e5XyTEFqw==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:mallory",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEinDxlhgPEk/eLTUZrS8FvqDXFs429vs8jfH91Iwl6KSX5lLuQU+8K/ZqmIh/+icGn/nSy9bw26N8P8vhErlS6g==",
-              "signature": "CaqY6Y+waFylhb54QqvmFoUox1BGqyvL8dGZNk3ILz2wFg0Fn4lRNA0Bu+Y68GKuGYQ2IgfrDlny4GBAv0w6aw==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKxPpcci0L20nD16lrlmQU/W5rXuZ5zB9j41W5pgXvbdvmJZRRIoUdCfwKwyYXU7VM1jjbDH/tskKO1PNjfXYHw==",
+              "signature": "p2Pc3DgJnVNMUJ9QPX2XOkzLg4Vj2XYiq5Gun4FxyGrPhLE+5QTEawxey5AoMCe3c/liav+pxoOODCKIxYqq0Q==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "ok": false
       },
       {
         "name": "expected-agent-tampered",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -717,18 +980,18 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "K/dtNUt4ig7F2dqlnxbfhhs7G9FgZVlT051XIyNxxF/h4z3SdGUnx6Fol6damfGfcNxCgu8wPoiZhwCKsVBFwg==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "QIY9yIWV+c95xlpnjBKboYBCEj65ivtcvfuOOo+j6PyHJU0nWchq3nJxb0SX+39rWQq0+vyMDxmlY4ruhX3DrQ==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "Jd12BWd5WJbguYYMJxCzusNqLvfnN6UnRlm9zrNlQO2+ZqJP/Z08ewtbkFFKGwX0ZQmblW96s2PDVXLCDzmIZA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "kqHu566VVYJXuN2bI4ZOy5nnRqF86Pv4GdX0Ot+3RvEwbpB1MzHL87wEYAFmrSioidan9vqLEEPcTeFhrgkwYw==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "expected": {
           "agentDid": "did:intyga:agent:other"
@@ -738,7 +1001,7 @@
       {
         "name": "expired-authority",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2026-09-01T12:00:01.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2026-09-01T12:00:01.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -748,18 +1011,18 @@
           "signatures": [
             {
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "Vm8SHk8iCtITIXOfxzSWpF3vOqPHVMF4TaM7UWzIsKKZIvgYJoXSjBmUGYbmryLtRhINC2mCt5AnstnOvUvfHw==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "JnLB9rxBq/RZDvfq/GZd6yZbrdxNdR2joTpQAuoERAZ6LHwQpyzd+Ypj3I92aOvu8TMQmuxIK6Qg7UeZENsljQ==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "lpy7so1ArNlHgkREHSOBzP93YyRak+rHJqwwiTh+WuUEdg5aO4FPwuA/mLboE87jkBsR0PePKTANziWqak/2GQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "b+IZcSct8+q8vEbQCTCE4qc4y2xcJ0LvE/1rdepOClJejuspWPMCXdhkkiA0SKMLr2hQGJxWi56nrwF6UDQR3g==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "8DF1-D6C3"
+          "verificationCode": "59B7-62F0"
         },
         "options": {
           "asOf": "2026-09-01T12:01:00.000Z",
@@ -770,7 +1033,7 @@
       {
         "name": "self-certifying-did-fallback",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -779,23 +1042,23 @@
           },
           "signatures": [
             {
-              "signerDid": "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "k8ibBWvAcV3F1pZlVljyLEmwXFjGrcVfIvq6jN1eRMj3KeU4a+OGxeY9kTN2tQueIMPHChuCW5kFiJ/ELBTONQ==",
+              "signerDid": "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "kvwxg2ip4Rd0hqAViCwl1DXz4fIAAot6WJF++EOPzw8ucR5/fBUFs0v7IpYWecUckliP0mFvlWgnhTFxKaBSyA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "AXOSS7x/JiT4yK2Wu3RAuRyyEa5mOT1Q7Pxk7kjp6MVuy26zHWVXRQs5ZnGwFUfAeHwl+esle2aQoNkFexWx6Q==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "JK1E2zGzv3aWn3yLd1f3TlvUv3swHdLLHNsgv1YJd7hYnFUro5BNKx8s1s4LXa9MH+/weiwavsvJH00w1paBUg==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "expected": {
           "approverDids": {
-            "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw": [],
+            "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ": [],
             "did:intyga:bob": [
               "bob"
             ]
@@ -806,7 +1069,7 @@
       {
         "name": "self-certifying-did-wrong-carried-key",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -815,23 +1078,23 @@
           },
           "signatures": [
             {
-              "signerDid": "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEinDxlhgPEk/eLTUZrS8FvqDXFs429vs8jfH91Iwl6KSX5lLuQU+8K/ZqmIh/+icGn/nSy9bw26N8P8vhErlS6g==",
-              "signature": "WCFAYlqb8HeOObwbavKNoO/WdCXKuXHmGK7buj4poHe4PnwEnSCUS9rcRZaDxsW8CKMUoI+x60lb4je9hhcsBg==",
+              "signerDid": "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKxPpcci0L20nD16lrlmQU/W5rXuZ5zB9j41W5pgXvbdvmJZRRIoUdCfwKwyYXU7VM1jjbDH/tskKO1PNjfXYHw==",
+              "signature": "QWKTx+ZPLZqoAiOETt2P+IEndlxMTg00h2zBmgQVg2JojQqjOsUES4MxYneUUZLxIZ+9bXDpUZGzWyP04w5DCw==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "3t/kWzC/BV2ZTkMkYQ1JTwPIOwfeOyLqXsnYjPxSqDn8mUrILH1Pj4lWmzwZohciDLQkzXcooAPYW0teXbyqdQ==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "CaIvwWFApWx1XDtOH2MTWatZdoiaaPjeGcs8LlF+XLKKf4oHPlwUDqpyNJjD3rDnGShw0tlzpkS19xdcCPcF1w==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "expected": {
           "approverDids": {
-            "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw": [],
+            "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ": [],
             "did:intyga:bob": [
               "bob"
             ]
@@ -842,7 +1105,7 @@
       {
         "name": "resolver-precedes-self-certifying-fallback",
         "receipt": {
-          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
+          "canonicalPayload": "{\"actionPatterns\":[\"payments.\",\"refund\"],\"agent\":{\"did\":\"did:intyga:agent:payments\"},\"display\":\"Payments scope\",\"expiresAt\":\"2027-09-01T12:00:00.000Z\",\"nonce\":\"authority-nonce\",\"parentReceiptHash\":null,\"requester\":{\"attestation\":null,\"did\":\"did:intyga:admin\"},\"requirement\":{\"allowedAaguids\":[],\"requesterCannotApprove\":false,\"requireHardwareKey\":false,\"requiredApprovals\":2,\"signerClass\":\"human\"},\"sealedAt\":\"2026-09-01T12:00:00.000Z\",\"target\":\"prod-payments\",\"type\":\"div-agent-authority\",\"v\":1}",
           "actionDescription": "Payments scope",
           "params": {},
           "requester": {
@@ -851,23 +1114,23 @@
           },
           "signatures": [
             {
-              "signerDid": "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
-              "signature": "k8ibBWvAcV3F1pZlVljyLEmwXFjGrcVfIvq6jN1eRMj3KeU4a+OGxeY9kTN2tQueIMPHChuCW5kFiJ/ELBTONQ==",
+              "signerDid": "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
+              "signature": "kvwxg2ip4Rd0hqAViCwl1DXz4fIAAot6WJF++EOPzw8ucR5/fBUFs0v7IpYWecUckliP0mFvlWgnhTFxKaBSyA==",
               "sigAlg": "ES256"
             },
             {
               "signerDid": "did:intyga:bob",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6/jZ1M15kdg58t9q1qsNwsUx6CxZinKnp+Ek/rcCNjObeLHt1XQHERv1MLUdyRY1PS4bnK0q2wXYFrAPMgcb0w==",
-              "signature": "AXOSS7x/JiT4yK2Wu3RAuRyyEa5mOT1Q7Pxk7kjp6MVuy26zHWVXRQs5ZnGwFUfAeHwl+esle2aQoNkFexWx6Q==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAULxehXOh5E4eH+MwVCOjG4YLFOqsHjzLDyfJbMdohYqLjYKuujmEgpBnoRjJMsGT28AvcLAOk8M6axsUAx0Ug==",
+              "signature": "JK1E2zGzv3aWn3yLd1f3TlvUv3swHdLLHNsgv1YJd7hYnFUro5BNKx8s1s4LXa9MH+/weiwavsvJH00w1paBUg==",
               "sigAlg": "ES256"
             }
           ],
-          "verificationCode": "FAFB-8F5C"
+          "verificationCode": "3F63-7258"
         },
         "expected": {
           "approverDids": {
-            "did:intyga:key:R2r-D6NBIbqz1eYXNdQC4Lt04olt-nGlv20dt1PiMBw": [
+            "did:intyga:key:Kof84Yn25C2phrpSk1_GHOTBvo3bTYuZd2WlBlaDvIQ": [
               "bob"
             ],
             "did:intyga:bob": [
@@ -906,7 +1169,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -919,9 +1182,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -933,14 +1196,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -949,12 +1212,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             }
           ]
         },
@@ -966,7 +1229,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": true,
         "properties": {
@@ -989,7 +1252,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1002,9 +1265,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1016,14 +1279,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1032,12 +1295,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-b.example",
               "algorithm": "Ed25519",
               "keyId": "anchor-ed25519",
-              "signature": "Xc0RIBSZuHyM0m2fHDLhLy0GmJumqUCjhhWDHDqe3g0zLgj/IirkuLTu56Br/Bjbb85D7/MwZNQOtPQLGs2vCQ=="
+              "signature": "Wr4wD9xVdv6nfmAcVAsUY3l8W5mHUDMfGoQjoI0seaf9VU253d3xC47QyvMHI7EeC8Zji/BDvM93z2BAswVtBA=="
             }
           ]
         },
@@ -1049,7 +1312,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": true,
         "properties": {
@@ -1072,7 +1335,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1085,9 +1348,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1099,14 +1362,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1115,12 +1378,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-c.example",
               "algorithm": "RSA-PSS",
               "keyId": "anchor-rsa-pss",
-              "signature": "Y2HfivLD5uvLSd/VqFEhRzb1H1DnnSMvBPZ6xQITBeBpY+iVIC/i/5dndYIiLZgLvhxG2SW7pCgWWXjGIvSnl2bnFj1BCXZYSG/xgMlbbcsw/e93APmzQBx8uCmxjAMKzmJK4UAyJ4L5OgfeyN27+sVpHEwjtst/m/AA3mvBeD756MWSib05lVOaGdyo1GyjdFM2c51X7tZPizI9n+L8hcmDFZ5ne8ik6Y/iYXLlTTct/9iWOnCxeOsWjoqZ833itO/uyPyRJXNpgRDTvhq5zYqyPAY9DtobT9v7PA5PVtKlyCezUC3Dr3QXNUCGsxythkgMf5yJwhIZ25+J24scXg=="
+              "signature": "eOweTu4J3/2UzLj+Wnar+q9KVag7eG5CoChGRFHaPvKJ/Z/TEgVgcCr2nwAsGIslznn33Xq6/mJvKBf3py0BBayRRlD99RuRbIxLflJVTZ2eg+i5bl/P1eJidz9SiYt585ypKuCP8MEleL5tTYOqWznECQJuNZJfzcpC75DqcCgKTBIvXMrkcnVrEkYY+MobIbD4VwfvX5DqU3i1HQ1u2VQ9OJTHRhqMLk8zNpmEHchql++ALIu/6ptKMsEDi2idkg3KMhiqCLZJBo7RTeP7djJp9uwgd5d1/Chwk5GlSbRYdmZgr8BWgZTu27oexmiQf7yE0Dg8KXw2lewUebOP2A=="
             }
           ]
         },
@@ -1132,7 +1395,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": true,
         "properties": {
@@ -1155,7 +1418,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1168,9 +1431,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1182,14 +1445,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1198,12 +1461,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-02T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             }
           ]
         },
@@ -1215,7 +1478,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1238,7 +1501,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1251,9 +1514,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1265,14 +1528,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1281,12 +1544,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-02T12:00:00.000Z",
               "issuer": "https://anchor-b.example",
               "algorithm": "Ed25519",
               "keyId": "anchor-ed25519",
-              "signature": "Xc0RIBSZuHyM0m2fHDLhLy0GmJumqUCjhhWDHDqe3g0zLgj/IirkuLTu56Br/Bjbb85D7/MwZNQOtPQLGs2vCQ=="
+              "signature": "Wr4wD9xVdv6nfmAcVAsUY3l8W5mHUDMfGoQjoI0seaf9VU253d3xC47QyvMHI7EeC8Zji/BDvM93z2BAswVtBA=="
             }
           ]
         },
@@ -1298,7 +1561,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1321,7 +1584,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1334,9 +1597,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1348,14 +1611,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1364,12 +1627,12 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-02T12:00:00.000Z",
               "issuer": "https://anchor-c.example",
               "algorithm": "RSA-PSS",
               "keyId": "anchor-rsa-pss",
-              "signature": "Y2HfivLD5uvLSd/VqFEhRzb1H1DnnSMvBPZ6xQITBeBpY+iVIC/i/5dndYIiLZgLvhxG2SW7pCgWWXjGIvSnl2bnFj1BCXZYSG/xgMlbbcsw/e93APmzQBx8uCmxjAMKzmJK4UAyJ4L5OgfeyN27+sVpHEwjtst/m/AA3mvBeD756MWSib05lVOaGdyo1GyjdFM2c51X7tZPizI9n+L8hcmDFZ5ne8ik6Y/iYXLlTTct/9iWOnCxeOsWjoqZ833itO/uyPyRJXNpgRDTvhq5zYqyPAY9DtobT9v7PA5PVtKlyCezUC3Dr3QXNUCGsxythkgMf5yJwhIZ25+J24scXg=="
+              "signature": "eOweTu4J3/2UzLj+Wnar+q9KVag7eG5CoChGRFHaPvKJ/Z/TEgVgcCr2nwAsGIslznn33Xq6/mJvKBf3py0BBayRRlD99RuRbIxLflJVTZ2eg+i5bl/P1eJidz9SiYt585ypKuCP8MEleL5tTYOqWznECQJuNZJfzcpC75DqcCgKTBIvXMrkcnVrEkYY+MobIbD4VwfvX5DqU3i1HQ1u2VQ9OJTHRhqMLk8zNpmEHchql++ALIu/6ptKMsEDi2idkg3KMhiqCLZJBo7RTeP7djJp9uwgd5d1/Chwk5GlSbRYdmZgr8BWgZTu27oexmiQf7yE0Dg8KXw2lewUebOP2A=="
             }
           ]
         },
@@ -1381,7 +1644,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1404,19 +1667,19 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256"
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1425,33 +1688,33 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-b.example",
               "algorithm": "Ed25519",
               "keyId": "anchor-ed25519",
-              "signature": "Xc0RIBSZuHyM0m2fHDLhLy0GmJumqUCjhhWDHDqe3g0zLgj/IirkuLTu56Br/Bjbb85D7/MwZNQOtPQLGs2vCQ=="
+              "signature": "Wr4wD9xVdv6nfmAcVAsUY3l8W5mHUDMfGoQjoI0seaf9VU253d3xC47QyvMHI7EeC8Zji/BDvM93z2BAswVtBA=="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-c.example",
               "algorithm": "RSA-PSS",
               "keyId": "anchor-rsa-pss",
-              "signature": "Y2HfivLD5uvLSd/VqFEhRzb1H1DnnSMvBPZ6xQITBeBpY+iVIC/i/5dndYIiLZgLvhxG2SW7pCgWWXjGIvSnl2bnFj1BCXZYSG/xgMlbbcsw/e93APmzQBx8uCmxjAMKzmJK4UAyJ4L5OgfeyN27+sVpHEwjtst/m/AA3mvBeD756MWSib05lVOaGdyo1GyjdFM2c51X7tZPizI9n+L8hcmDFZ5ne8ik6Y/iYXLlTTct/9iWOnCxeOsWjoqZ833itO/uyPyRJXNpgRDTvhq5zYqyPAY9DtobT9v7PA5PVtKlyCezUC3Dr3QXNUCGsxythkgMf5yJwhIZ25+J24scXg=="
+              "signature": "eOweTu4J3/2UzLj+Wnar+q9KVag7eG5CoChGRFHaPvKJ/Z/TEgVgcCr2nwAsGIslznn33Xq6/mJvKBf3py0BBayRRlD99RuRbIxLflJVTZ2eg+i5bl/P1eJidz9SiYt585ypKuCP8MEleL5tTYOqWznECQJuNZJfzcpC75DqcCgKTBIvXMrkcnVrEkYY+MobIbD4VwfvX5DqU3i1HQ1u2VQ9OJTHRhqMLk8zNpmEHchql++ALIu/6ptKMsEDi2idkg3KMhiqCLZJBo7RTeP7djJp9uwgd5d1/Chwk5GlSbRYdmZgr8BWgZTu27oexmiQf7yE0Dg8KXw2lewUebOP2A=="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": true,
         "verificationLevel": "COMMITMENT_VERIFIED",
@@ -1476,7 +1739,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1489,9 +1752,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1503,14 +1766,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1519,33 +1782,33 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-b.example",
               "algorithm": "Ed25519",
               "keyId": "anchor-ed25519",
-              "signature": "Xc0RIBSZuHyM0m2fHDLhLy0GmJumqUCjhhWDHDqe3g0zLgj/IirkuLTu56Br/Bjbb85D7/MwZNQOtPQLGs2vCQ=="
+              "signature": "Wr4wD9xVdv6nfmAcVAsUY3l8W5mHUDMfGoQjoI0seaf9VU253d3xC47QyvMHI7EeC8Zji/BDvM93z2BAswVtBA=="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-c.example",
               "algorithm": "RSA-PSS",
               "keyId": "anchor-rsa-pss",
-              "signature": "Y2HfivLD5uvLSd/VqFEhRzb1H1DnnSMvBPZ6xQITBeBpY+iVIC/i/5dndYIiLZgLvhxG2SW7pCgWWXjGIvSnl2bnFj1BCXZYSG/xgMlbbcsw/e93APmzQBx8uCmxjAMKzmJK4UAyJ4L5OgfeyN27+sVpHEwjtst/m/AA3mvBeD756MWSib05lVOaGdyo1GyjdFM2c51X7tZPizI9n+L8hcmDFZ5ne8ik6Y/iYXLlTTct/9iWOnCxeOsWjoqZ833itO/uyPyRJXNpgRDTvhq5zYqyPAY9DtobT9v7PA5PVtKlyCezUC3Dr3QXNUCGsxythkgMf5yJwhIZ25+J24scXg=="
+              "signature": "eOweTu4J3/2UzLj+Wnar+q9KVag7eG5CoChGRFHaPvKJ/Z/TEgVgcCr2nwAsGIslznn33Xq6/mJvKBf3py0BBayRRlD99RuRbIxLflJVTZ2eg+i5bl/P1eJidz9SiYt585ypKuCP8MEleL5tTYOqWznECQJuNZJfzcpC75DqcCgKTBIvXMrkcnVrEkYY+MobIbD4VwfvX5DqU3i1HQ1u2VQ9OJTHRhqMLk8zNpmEHchql++ALIu/6ptKMsEDi2idkg3KMhiqCLZJBo7RTeP7djJp9uwgd5d1/Chwk5GlSbRYdmZgr8BWgZTu27oexmiQf7yE0Dg8KXw2lewUebOP2A=="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "anchorKeyIds": [
             "anchor-es256",
             "anchor-ed25519",
@@ -1577,7 +1840,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1590,9 +1853,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1604,14 +1867,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1620,17 +1883,17 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "anchorKeyIds": [
             "anchor-es256"
           ]
@@ -1656,7 +1919,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1669,9 +1932,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1683,14 +1946,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1699,33 +1962,33 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-b.example",
               "algorithm": "Ed25519",
               "keyId": "anchor-ed25519",
-              "signature": "Xc0RIBSZuHyM0m2fHDLhLy0GmJumqUCjhhWDHDqe3g0zLgj/IirkuLTu56Br/Bjbb85D7/MwZNQOtPQLGs2vCQ=="
+              "signature": "Wr4wD9xVdv6nfmAcVAsUY3l8W5mHUDMfGoQjoI0seaf9VU253d3xC47QyvMHI7EeC8Zji/BDvM93z2BAswVtBA=="
             },
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-c.example",
               "algorithm": "RSA-PSS",
               "keyId": "anchor-rsa-pss",
-              "signature": "Y2HfivLD5uvLSd/VqFEhRzb1H1DnnSMvBPZ6xQITBeBpY+iVIC/i/5dndYIiLZgLvhxG2SW7pCgWWXjGIvSnl2bnFj1BCXZYSG/xgMlbbcsw/e93APmzQBx8uCmxjAMKzmJK4UAyJ4L5OgfeyN27+sVpHEwjtst/m/AA3mvBeD756MWSib05lVOaGdyo1GyjdFM2c51X7tZPizI9n+L8hcmDFZ5ne8ik6Y/iYXLlTTct/9iWOnCxeOsWjoqZ833itO/uyPyRJXNpgRDTvhq5zYqyPAY9DtobT9v7PA5PVtKlyCezUC3Dr3QXNUCGsxythkgMf5yJwhIZ25+J24scXg=="
+              "signature": "eOweTu4J3/2UzLj+Wnar+q9KVag7eG5CoChGRFHaPvKJ/Z/TEgVgcCr2nwAsGIslznn33Xq6/mJvKBf3py0BBayRRlD99RuRbIxLflJVTZ2eg+i5bl/P1eJidz9SiYt585ypKuCP8MEleL5tTYOqWznECQJuNZJfzcpC75DqcCgKTBIvXMrkcnVrEkYY+MobIbD4VwfvX5DqU3i1HQ1u2VQ9OJTHRhqMLk8zNpmEHchql++ALIu/6ptKMsEDi2idkg3KMhiqCLZJBo7RTeP7djJp9uwgd5d1/Chwk5GlSbRYdmZgr8BWgZTu27oexmiQf7yE0Dg8KXw2lewUebOP2A=="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "anchorKeyIds": [
             "anchor-es256",
             "anchor-ed25519",
@@ -1738,7 +2001,7 @@
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIFJA4yl+B06gix5DHZI/w8p5LISe37F1KvrvG5uH7WVgAiEAvo4RxolTq6RYkG5vn3yeDWT7Rk3qhBaXxumoiJu6BwY="
+              "signature": "MEUCIGmkqRj5BOSU4CasDWE7QbQo+5iMYmkfos0pA9XKzwciAiEAhUIUFIuZLeqC78uuf9IfnK1N6zWsjWSmCfGYfi5Vekc="
             }
           ]
         },
@@ -1764,7 +2027,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1777,9 +2040,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1791,14 +2054,14 @@
           },
           "proof": {
             "seq": "999",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1807,7 +2070,7 @@
           }
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1830,7 +2093,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1843,9 +2106,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1857,14 +2120,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1873,7 +2136,7 @@
           }
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1896,7 +2159,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1909,9 +2172,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1923,14 +2186,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -1939,7 +2202,7 @@
           }
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -1962,7 +2225,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -1975,9 +2238,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -1989,14 +2252,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -2005,14 +2268,14 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://rekor.sigstore.dev",
               "algorithm": "ES256",
               "keyId": "rekor",
               "signature": "",
               "kind": "REKOR",
-              "evidence": "eyJ1dWlkIjoiMjQyOTZmYjI0YjhhZDc3YSIsImJvZHkiOiJleUpoY0dsV1pYSnphVzl1SWpvaU1DNHdMakVpTENKcmFXNWtJam9pYUdGemFHVmtjbVZyYjNKa0lpd2ljM0JsWXlJNmV5SmtZWFJoSWpwN0ltaGhjMmdpT25zaVlXeG5iM0pwZEdodElqb2ljMmhoTWpVMklpd2lkbUZzZFdVaU9pSXpaV1ptWmprM09UUTROV1l3WkdFMk56YzVOR1l4WlRsa01qUXpZemN6TkRsbVl6RTNNV00xTmpCa05URXlZbU14TkdVME1XRTFPRGhtWXpZNU9EWXpJbjE5TENKemFXZHVZWFIxY21VaU9uc2lZMjl1ZEdWdWRDSTZJbU15Ykc0aUxDSndkV0pzYVdOTFpYa2lPbnNpWTI5dWRHVnVkQ0k2SW1OSGN6MGlmWDE5ZlE9PSIsImludGVncmF0ZWRUaW1lIjoxNzg1MDAwMDAwLCJsb2dJRCI6ImMwZDIzZDZhZDQwNjk3M2Y5NTU5ZjNiYTJkMWNhMDFmODQxNDdkOGZmYzViODQ0NWMyMjRmOThiOTU5MTgwMWQiLCJsb2dJbmRleCI6NDIxNTg4OSwidmVyaWZpY2F0aW9uIjp7InNpZ25lZEVudHJ5VGltZXN0YW1wIjoiTUVVQ0lIL1FBNGw3M1BzQ2c4a3N6ZlVWc1dQeXdSNmlOejUrUjFYbjQ2bEh1ek1vQWlFQTJ1VzdOZE1RcUUrSjJFUDFBdnYrNk5nREdGT2RZVmdhMnVzQnN2V2lIUDg9In19"
+              "evidence": "eyJ1dWlkIjoiMjQyOTZmYjI0YjhhZDc3YSIsImJvZHkiOiJleUpoY0dsV1pYSnphVzl1SWpvaU1DNHdMakVpTENKcmFXNWtJam9pYUdGemFHVmtjbVZyYjNKa0lpd2ljM0JsWXlJNmV5SmtZWFJoSWpwN0ltaGhjMmdpT25zaVlXeG5iM0pwZEdodElqb2ljMmhoTWpVMklpd2lkbUZzZFdVaU9pSmtaakZtT1RrMlpqUXlPVGxtTldObFlUbGpZekV5TkRsaE56UXpabVJoTURrNFpEQXdNVFZoWmpKbE16QTFaVGN4TWpkaFltRmhObVEyWkdZeU1UaGhJbjE5TENKemFXZHVZWFIxY21VaU9uc2lZMjl1ZEdWdWRDSTZJbU15Ykc0aUxDSndkV0pzYVdOTFpYa2lPbnNpWTI5dWRHVnVkQ0k2SW1OSGN6MGlmWDE5ZlE9PSIsImludGVncmF0ZWRUaW1lIjoxNzg1MDAwMDAwLCJsb2dJRCI6ImMwZDIzZDZhZDQwNjk3M2Y5NTU5ZjNiYTJkMWNhMDFmODQxNDdkOGZmYzViODQ0NWMyMjRmOThiOTU5MTgwMWQiLCJsb2dJbmRleCI6NDIxNTg4OSwidmVyaWZpY2F0aW9uIjp7InNpZ25lZEVudHJ5VGltZXN0YW1wIjoiTUVZQ0lRREtrdW84WkFoYVJtN3RrUjNKbXBiVGRpa1pGa2RRbDVUTGQ1N1VBVTJMd2dJaEFOM2Z4NkNVMS9qaS85YVlEQ3lURG5TajdhTW1qdlJMNER6cGRYcmk5dEZRIn19"
             }
           ]
         },
@@ -2024,7 +2287,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "rekorKeyId": "rekor"
         },
         "ok": true,
@@ -2048,7 +2311,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -2061,9 +2324,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -2075,14 +2338,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -2091,14 +2354,14 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://rekor.sigstore.dev",
               "algorithm": "ES256",
               "keyId": "rekor",
               "signature": "",
               "kind": "REKOR",
-              "evidence": "eyJ1dWlkIjoiMjQyOTZmYjI0YjhhZDc3YSIsImJvZHkiOiJleUpoY0dsV1pYSnphVzl1SWpvaU1DNHdMakVpTENKcmFXNWtJam9pYUdGemFHVmtjbVZyYjNKa0lpd2ljM0JsWXlJNmV5SmtZWFJoSWpwN0ltaGhjMmdpT25zaVlXeG5iM0pwZEdodElqb2ljMmhoTWpVMklpd2lkbUZzZFdVaU9pSTRPREV3WVdRMU9ERmxOVGxtTW1Kak16a3lPR0l5TmpFM01EZGhOekV6TURobU4yVXhNemxsWWpBME9ESXdNelkyWkdNMFpEVmpNVGhrT1Rnd01qSTFJbjE5TENKemFXZHVZWFIxY21VaU9uc2lZMjl1ZEdWdWRDSTZJbU15Ykc0aUxDSndkV0pzYVdOTFpYa2lPbnNpWTI5dWRHVnVkQ0k2SW1OSGN6MGlmWDE5ZlE9PSIsImludGVncmF0ZWRUaW1lIjoxNzg1MDAwMDAwLCJsb2dJRCI6ImMwZDIzZDZhZDQwNjk3M2Y5NTU5ZjNiYTJkMWNhMDFmODQxNDdkOGZmYzViODQ0NWMyMjRmOThiOTU5MTgwMWQiLCJsb2dJbmRleCI6NDIxNTg4OSwidmVyaWZpY2F0aW9uIjp7InNpZ25lZEVudHJ5VGltZXN0YW1wIjoiTUVZQ0lRQ2szYWFuSllIYXE2akk0bitucWFMZTl4RTlWSVJQM09NNm9iMDUvUkpJeVFJaEFKK2VwSkd6cUZFY1ppYm1nMm1icTRpdjFjZVA2U3hmMzdGNFMwdSsrMWVZIn19"
+              "evidence": "eyJ1dWlkIjoiMjQyOTZmYjI0YjhhZDc3YSIsImJvZHkiOiJleUpoY0dsV1pYSnphVzl1SWpvaU1DNHdMakVpTENKcmFXNWtJam9pYUdGemFHVmtjbVZyYjNKa0lpd2ljM0JsWXlJNmV5SmtZWFJoSWpwN0ltaGhjMmdpT25zaVlXeG5iM0pwZEdodElqb2ljMmhoTWpVMklpd2lkbUZzZFdVaU9pSTRPREV3WVdRMU9ERmxOVGxtTW1Kak16a3lPR0l5TmpFM01EZGhOekV6TURobU4yVXhNemxsWWpBME9ESXdNelkyWkdNMFpEVmpNVGhrT1Rnd01qSTFJbjE5TENKemFXZHVZWFIxY21VaU9uc2lZMjl1ZEdWdWRDSTZJbU15Ykc0aUxDSndkV0pzYVdOTFpYa2lPbnNpWTI5dWRHVnVkQ0k2SW1OSGN6MGlmWDE5ZlE9PSIsImludGVncmF0ZWRUaW1lIjoxNzg1MDAwMDAwLCJsb2dJRCI6ImMwZDIzZDZhZDQwNjk3M2Y5NTU5ZjNiYTJkMWNhMDFmODQxNDdkOGZmYzViODQ0NWMyMjRmOThiOTU5MTgwMWQiLCJsb2dJbmRleCI6NDIxNTg4OSwidmVyaWZpY2F0aW9uIjp7InNpZ25lZEVudHJ5VGltZXN0YW1wIjoiTUVVQ0lRRDl1N2VPSzVteVdXYjNWb2FoSldkMENrelJ3SXdKbWlXeDg3d0oxQkFjZlFJZ0FnbE5rY25VZ3lUdm5qT0RMRzNhOU9iZ2pFckZPU0czdVZWMXByRVZUWVU9In19"
             }
           ]
         },
@@ -2110,7 +2373,7 @@
           "quorum": "N_OF_M"
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "rekorKeyId": "rekor"
         },
         "ok": false,
@@ -2134,7 +2397,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -2147,9 +2410,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -2161,14 +2424,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -2177,17 +2440,17 @@
           },
           "anchors": [
             {
-              "dailyRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+              "dailyRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
               "timestamp": "2026-09-01T12:00:00.000Z",
               "issuer": "https://anchor-a.example",
               "algorithm": "DSA",
               "keyId": "anchor-es256",
-              "signature": "MEUCIQD178whhS4GHvW2yhhXaohBrC4ucvNPLfOKUs5gDc1geAIgWpV5nA1bEOVJ6l+uhImwP49R+5utIT/w2IgnzX/UfGU="
+              "signature": "MEUCIQDWOZUPb0nD8ip9b2YpNjRfrdrveeXwKY9uJ4C/rLzDHgIgar/xd2/MYNso6Afclzfh3Bbid3H9SIawKGrUVr/vgbs="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
           "anchorKeyIds": [
             "anchor-es256"
           ]
@@ -2213,7 +2476,7 @@
             "actorDid": null,
             "subjectDid": null,
             "signerDid": "did:intyga:alice",
-            "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+            "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
             "sigAlg": "ES256",
             "canonical": {
               "seq": "1",
@@ -2226,9 +2489,9 @@
                 "parity": true
               },
               "signerDid": "did:intyga:alice",
-              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL8nT5CFRvRtJNRTT08PJ7PUPwaLFDZX1DCMFmNwGb7Cn5sdGyV7ZMNiNcrKD7kHIXtQLBcp6V3t+e2ug5FbYeA==",
+              "signerPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEamT/Kh+Wg2MghZL+MxblCFViVpaWjGIPSXUwxQEglb/t7MX0l0iQOrp2d7JXYeWiQk8RysHogN3rAseOEq0rrQ==",
               "signedPayload": "signed parity event",
-              "signature": "e4nLhniCVJPKY+FiQqyJlVyeHyBn05MyuRdY7129PO4UdOBdq14RxDwbYdk6kd20R/jXKDXRWZpEGk5kcyxnZg==",
+              "signature": "NAKvkgDzn2DvOwrm212de6/Z+eV4kOq7ckqHMZMGH2dr6y1g/PE8DMC8PYKxRNZcRSw/+UGEAFKX4MNLo1X/xw==",
               "sigAlg": "ES256",
               "isBillable": false,
               "tenantId": "tenant-1",
@@ -2240,14 +2503,14 @@
           },
           "proof": {
             "seq": "1",
-            "leaf": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "leaf": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockIndex": "0",
-            "blockRoot": "4b01c9efc385d98683459d30c548201a7b09d9107a40ef7ae7430bb42639528c",
+            "blockRoot": "922a073524b4657a4b6639cf56c0986c12a9bdde0c70348e4da87eaec207b471",
             "blockProof": [],
             "leafIndex": 0,
             "blockLeafCount": 1,
             "checkpointId": "cp-1",
-            "checkpointRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db",
+            "checkpointRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37",
             "checkpointProof": [],
             "checkpointLeafIndex": 0,
             "checkpointLeafCount": 1,
@@ -2261,12 +2524,12 @@
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEUCIFJA4yl+B06gix5DHZI/w8p5LISe37F1KvrvG5uH7WVgAiEAvo4RxolTq6RYkG5vn3yeDWT7Rk3qhBaXxumoiJu6BwY="
+              "signature": "MEUCIGmkqRj5BOSU4CasDWE7QbQo+5iMYmkfos0pA9XKzwciAiEAhUIUFIuZLeqC78uuf9IfnK1N6zWsjWSmCfGYfi5Vekc="
             }
           ]
         },
         "options": {
-          "trustedRoot": "60de15262a710d308b8e45df399507f03e67cf918615f8dea4773e55769de9db"
+          "trustedRoot": "aeb231128fef37685ad403030caacddc7ef23b23b96211a7782b4c3d65736a37"
         },
         "ok": false,
         "properties": {
@@ -2307,7 +2570,7 @@
                   "issuer": "https://anchor-a.example",
                   "algorithm": "ES256",
                   "keyId": "anchor-es256",
-                  "signature": "MEQCICYkJ7IrCmARUqhcSC9R/2uHXA1u5yUmNzWFkT08lfJaAiBya24QBgCYHaHthbUtsFTfE5EcGk7N9zofd44YYaclYw=="
+                  "signature": "MEYCIQCk3fE4nDfbmNJBuiKU/jzAn3hgFw1KoXlMALD2p0kKhQIhAN7t5XPw2wv2dt4YqC66rBKZLfLKmXDf7op1eLUxacM9"
                 },
                 {
                   "dailyRoot": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -2315,7 +2578,7 @@
                   "issuer": "https://anchor-a.example",
                   "algorithm": "ES256",
                   "keyId": "anchor-es256",
-                  "signature": "MEUCIFJA4yl+B06gix5DHZI/w8p5LISe37F1KvrvG5uH7WVgAiEAvo4RxolTq6RYkG5vn3yeDWT7Rk3qhBaXxumoiJu6BwY="
+                  "signature": "MEUCIGmkqRj5BOSU4CasDWE7QbQo+5iMYmkfos0pA9XKzwciAiEAhUIUFIuZLeqC78uuf9IfnK1N6zWsjWSmCfGYfi5Vekc="
                 }
               ]
             }
@@ -2763,7 +3026,7 @@
                   "issuer": "https://anchor-a.example",
                   "algorithm": "ES256",
                   "keyId": "anchor-es256",
-                  "signature": "MEQCICYkJ7IrCmARUqhcSC9R/2uHXA1u5yUmNzWFkT08lfJaAiBya24QBgCYHaHthbUtsFTfE5EcGk7N9zofd44YYaclYw=="
+                  "signature": "MEYCIQCk3fE4nDfbmNJBuiKU/jzAn3hgFw1KoXlMALD2p0kKhQIhAN7t5XPw2wv2dt4YqC66rBKZLfLKmXDf7op1eLUxacM9"
                 },
                 {
                   "dailyRoot": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -2771,7 +3034,7 @@
                   "issuer": "https://anchor-a.example",
                   "algorithm": "ES256",
                   "keyId": "anchor-es256",
-                  "signature": "MEUCIFJA4yl+B06gix5DHZI/w8p5LISe37F1KvrvG5uH7WVgAiEAvo4RxolTq6RYkG5vn3yeDWT7Rk3qhBaXxumoiJu6BwY="
+                  "signature": "MEUCIGmkqRj5BOSU4CasDWE7QbQo+5iMYmkfos0pA9XKzwciAiEAhUIUFIuZLeqC78uuf9IfnK1N6zWsjWSmCfGYfi5Vekc="
                 }
               ]
             }
@@ -2975,7 +3238,7 @@
                 "issuer": "https://anchor-a.example",
                 "algorithm": "ES256",
                 "keyId": "anchor-es256",
-                "signature": "MEUCIFJA4yl+B06gix5DHZI/w8p5LISe37F1KvrvG5uH7WVgAiEAvo4RxolTq6RYkG5vn3yeDWT7Rk3qhBaXxumoiJu6BwY="
+                "signature": "MEUCIGmkqRj5BOSU4CasDWE7QbQo+5iMYmkfos0pA9XKzwciAiEAhUIUFIuZLeqC78uuf9IfnK1N6zWsjWSmCfGYfi5Vekc="
               }
             ]
           }
@@ -3206,7 +3469,7 @@
                 "issuer": "https://anchor-a.example",
                 "algorithm": "ES256",
                 "keyId": "anchor-es256",
-                "signature": "MEQCICYkJ7IrCmARUqhcSC9R/2uHXA1u5yUmNzWFkT08lfJaAiBya24QBgCYHaHthbUtsFTfE5EcGk7N9zofd44YYaclYw=="
+                "signature": "MEYCIQCk3fE4nDfbmNJBuiKU/jzAn3hgFw1KoXlMALD2p0kKhQIhAN7t5XPw2wv2dt4YqC66rBKZLfLKmXDf7op1eLUxacM9"
               }
             ]
           }
@@ -3436,7 +3699,7 @@
               "issuer": "https://anchor-a.example",
               "algorithm": "ES256",
               "keyId": "anchor-es256",
-              "signature": "MEQCICYkJ7IrCmARUqhcSC9R/2uHXA1u5yUmNzWFkT08lfJaAiBya24QBgCYHaHthbUtsFTfE5EcGk7N9zofd44YYaclYw=="
+              "signature": "MEYCIQCk3fE4nDfbmNJBuiKU/jzAn3hgFw1KoXlMALD2p0kKhQIhAN7t5XPw2wv2dt4YqC66rBKZLfLKmXDf7op1eLUxacM9"
             }
           ]
         },
