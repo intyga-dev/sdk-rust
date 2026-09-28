@@ -5,6 +5,20 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
 
 ## [Unreleased]
 
+- **Breaking (I11):** `Client::new` and `Client::with_transport` now return `Result<Client, String>`
+  and refuse a `gateway_url` that is not `https://`, except `http://` to a loopback host
+  (`localhost`, `127.0.0.0/8`, `::1`) for local development.
+
+- Refresh the SDK lockfile to include the verifier's existing Unicode normalization dependency.
+
+- Refuse approvals received after the caller's monotonic wait deadline; include challenge creation
+  in the wait window and cap polling sleeps to its remaining duration.
+
+- Preserve challenge-issued agent context through approval polling for DIV continuity checks.
+- Public witness lookups require no credentials and refuse non-success HTTP responses.
+- Default HTTP transports use finite request timeouts and refuse redirects; caller-supplied
+  transports remain the caller's responsibility.
+
 - Rebuilt against the DIV Intent Payload's new REQUIRED `evidence` field (DIV §4.3.4), which is
   `null` in this version. No API change; receipts carry the field inside `canonicalPayload` only.
 

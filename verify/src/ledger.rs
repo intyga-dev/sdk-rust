@@ -322,38 +322,119 @@ pub fn verify_inclusion_proof(
     )
 }
 
-/// JCS of [dailyRoot, timestamp, issuer, algorithm].
-pub fn anchor_preimage(daily_root: &str, timestamp: &str, issuer: &str, algorithm: &str) -> String {
-    serde_json::to_string(&vec![daily_root, timestamp, issuer, algorithm]).unwrap_or_default()
+/// JCS of [dailyRoot, timestamp, issuer, algorithm, seqStart, seqEnd, chainHash]. The last three bind
+/// the checkpoint's POSITION (DEWP §5.2): without them an external witness attests only a root string
+/// that could be recomputed and witnessed at any later time.
+#[allow(clippy::too_many_arguments)]
+pub fn anchor_preimage(
+    daily_root: &str,
+    timestamp: &str,
+    issuer: &str,
+    algorithm: &str,
+    seq_start: &str,
+    seq_end: &str,
+    chain_hash: &str,
+) -> String {
+    serde_json::to_string(&vec![
+        daily_root, timestamp, issuer, algorithm, seq_start, seq_end, chain_hash,
+    ])
+    .unwrap_or_default()
 }
 
 /// sha256(0x03 || UTF8(anchor_preimage)) as RAW bytes — the exact message an anchor issuer signs.
 /// DEWP §5.2: the signature is over these 32 raw bytes, never their 64-character hex text. An
 /// implementation that signs the hex matches the digest vector and still fails to interoperate,
 /// which is why the shared `signedAnchor` vectors exist.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn anchor_digest_bytes(
     daily_root: &str,
     timestamp: &str,
     issuer: &str,
     algorithm: &str,
+    seq_start: &str,
+    seq_end: &str,
+    chain_hash: &str,
 ) -> [u8; 32] {
     let mut buf = vec![0x03u8];
-    buf.extend_from_slice(anchor_preimage(daily_root, timestamp, issuer, algorithm).as_bytes());
+    buf.extend_from_slice(
+        anchor_preimage(daily_root, timestamp, issuer, algorithm, seq_start, seq_end, chain_hash)
+            .as_bytes(),
+    );
     let mut h = Sha256::new();
     h.update(&buf);
     h.finalize().into()
 }
 
 /// sha256(0x03 || UTF8(anchor_preimage)).
+#[allow(clippy::too_many_arguments)]
 pub fn anchor_digest_hex(
     daily_root: &str,
     timestamp: &str,
     issuer: &str,
     algorithm: &str,
+    seq_start: &str,
+    seq_end: &str,
+    chain_hash: &str,
 ) -> String {
     to_hex(&anchor_digest_bytes(
-        daily_root, timestamp, issuer, algorithm,
+        daily_root, timestamp, issuer, algorithm, seq_start, seq_end, chain_hash,
     ))
+}
+
+/// Milliseconds since the epoch for an exact DEWP §4.3 timestamp (`YYYY-MM-DDTHH:mm:ss.sssZ`), or None.
+/// Strict so every port reads the same instant from the same bytes (no offsets, no leap second, no
+/// 30 February rolled into March).
+pub fn parse_anchor_timestamp_ms(s: &str) -> Option<i64> {
+    let b = s.as_bytes();
+    if b.len() != 24 {
+        return None;
+    }
+    for (i, c) in b.iter().enumerate() {
+        let ok = match i {
+            4 | 7 => *c == b'-',
+            10 => *c == b'T',
+            13 | 16 => *c == b':',
+            19 => *c == b'.',
+            23 => *c == b'Z',
+            _ => c.is_ascii_digit(),
+        };
+        if !ok {
+            return None;
+        }
+    }
+    let num = |r: std::ops::Range<usize>| s[r].parse::<i64>().ok();
+    let (y, mo, d, h, mi, se, ms) = (
+        num(0..4)?,
+        num(5..7)?,
+        num(8..10)?,
+        num(11..13)?,
+        num(14..16)?,
+        num(17..19)?,
+        num(20..23)?,
+    );
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let dim = match mo {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if d < 1 || d > dim || h > 23 || mi > 59 || se > 59 {
+        return None;
+    }
+    let yy = y - if mo <= 2 { 1 } else { 0 };
+    let era = (if yy >= 0 { yy } else { yy - 399 }) / 400;
+    let yoe = yy - era * 400;
+    let mp = if mo > 2 { mo - 3 } else { mo + 9 };
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146097 + doe - 719468;
+    Some(((days * 86400 + h * 3600 + mi * 60 + se) * 1000) + ms)
+}
+
+fn is_seq(s: &str) -> bool {
+    (1..=20).contains(&s.len()) && s.bytes().all(|c| c.is_ascii_digit())
 }
 
 /// Verify one anchor's ES256 signature (DEWP §5.2 — single anchor, Core Profile).
@@ -361,35 +442,37 @@ pub fn anchor_digest_hex(
 /// The signed MESSAGE is the raw 32-byte anchor digest; ECDSA-P256/SHA-256 hashes it again
 /// internally, matching the TS reference (`crypto.sign` over the digest bytes, `dsaEncoding:
 /// "der"`). The key is base64 SPKI resolved by the CALLER from its own trust policy — never taken
-/// from the anchor. This backwards-compatible helper accepts ES256 only; use `verify_signed_anchor`
-/// for ES256, Ed25519 or RSA-PSS, and `verify_anchor_quorum` for caller-policy quorum evaluation.
+/// from the anchor. This helper accepts ES256 only; use `verify_signed_anchor` for ES256, Ed25519 or
+/// RSA-PSS, and `verify_anchor_quorum` for caller-policy quorum evaluation.
+#[allow(clippy::too_many_arguments)]
 pub fn verify_anchor_signature(
     daily_root: &str,
     timestamp: &str,
     issuer: &str,
     algorithm: &str,
+    seq_start: &str,
+    seq_end: &str,
+    chain_hash: &str,
     signature_b64: &str,
     trusted_spki_b64: &str,
 ) -> bool {
     if algorithm != "ES256" {
         return false;
     }
-    let Ok(pub_bytes) = STANDARD.decode(trusted_spki_b64) else {
-        return false;
+    let anchor = SignedAnchor {
+        daily_root: daily_root.into(),
+        timestamp: timestamp.into(),
+        issuer: issuer.into(),
+        algorithm: algorithm.into(),
+        key_id: String::new(),
+        signature: signature_b64.into(),
+        kind: None,
+        evidence: None,
+        seq_start: seq_start.into(),
+        seq_end: seq_end.into(),
+        chain_hash: chain_hash.into(),
     };
-    let Ok(sig_bytes) = STANDARD.decode(signature_b64) else {
-        return false;
-    };
-    let Some(key) = crate::parse_p256_public_key(&pub_bytes) else {
-        return false;
-    };
-    // Reuses the receipt path's parsing/verification machinery: SPKI or SEC1 keys, DER or raw
-    // P1363 signatures.
-    crate::verify_p256_signature(
-        &key,
-        &anchor_digest_bytes(daily_root, timestamp, issuer, algorithm),
-        &sig_bytes,
-    )
+    verify_signed_anchor(&anchor, trusted_spki_b64)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -405,6 +488,39 @@ pub struct SignedAnchor {
     pub kind: Option<String>,
     #[serde(default)]
     pub evidence: Option<String>,
+    /// The checkpoint's POSITION, part of the signed preimage (DEWP §5.2). Missing on the wire ⇒
+    /// empty ⇒ not well-formed ⇒ never verifies.
+    #[serde(default)]
+    pub seq_start: String,
+    #[serde(default)]
+    pub seq_end: String,
+    #[serde(default)]
+    pub chain_hash: String,
+}
+impl SignedAnchor {
+    /// The raw 32-byte anchor digest over all seven signed fields.
+    pub fn digest(&self) -> [u8; 32] {
+        anchor_digest_bytes(
+            &self.daily_root,
+            &self.timestamp,
+            &self.issuer,
+            &self.algorithm,
+            &self.seq_start,
+            &self.seq_end,
+            &self.chain_hash,
+        )
+    }
+    /// All seven signed fields have the shapes DEWP §5.2 requires. A missing position field is
+    /// refused rather than hashed.
+    pub fn is_well_formed(&self) -> bool {
+        // §5.2 algorithm registry: the label is signed, so any other one is not a §5.2 anchor.
+        matches!(self.algorithm.as_str(), "ES256" | "Ed25519" | "RSA-PSS")
+            && is_hash64(&self.daily_root)
+            && parse_anchor_timestamp_ms(&self.timestamp).is_some()
+            && is_seq(&self.seq_start)
+            && is_seq(&self.seq_end)
+            && is_hash64(&self.chain_hash)
+    }
 }
 #[derive(Debug, Clone)]
 pub enum AnchorQuorum {
@@ -416,10 +532,63 @@ pub struct AnchorPolicy {
     pub required_anchors: usize,
     pub trusted_issuers: Vec<String>,
     pub quorum: AnchorQuorum,
+    /// Bound on how long after the checkpoint's claimed time an EXTERNAL witness (Rekor
+    /// integratedTime, TSA genTime) may first have seen the anchor. None ⇒ the DEWP §5.3 default.
+    pub max_anchor_lag_seconds: Option<i64>,
 }
+/// DEWP §5.3 default time bound. An anchor witnessed later proves only that the root existed when it
+/// was finally witnessed — exactly what re-anchoring a rewritten old root today produces.
+pub const DEFAULT_MAX_ANCHOR_LAG_SECONDS: i64 = 86_400;
+/// Tolerated witness time BEFORE the checkpoint's claimed time (producer clock ahead of the witness).
+pub const ANCHOR_CLOCK_SKEW_SECONDS: i64 = 300;
 #[derive(Debug, Clone, Default)]
 pub struct ExternalAnchorKeys {
     pub rekor: Option<String>,
+    pub rekor_issuer: Option<String>,
+    /// The producer's Rekor submission key(s) (PEM or base64 SPKI). When non-empty, an entry counts
+    /// only if submitted under one of them with a valid ES256 signature over the anchor digest.
+    pub rekor_submitter_keys: Vec<String>,
+    pub rfc3161: std::collections::BTreeMap<String, crate::rfc3161::Rfc3161Trust>,
+}
+/// The checkpoint anchors are counted FOR; every known field must equal the anchor's signed field
+/// (`anchored_at` against the anchor's timestamp). An expected checkpoint with no `anchored_at`
+/// counts no EXTERNAL witness: its time bound would have nothing trusted to be measured against.
+#[derive(Debug, Clone, Default)]
+pub struct ExpectedCheckpoint {
+    pub seq_start: Option<String>,
+    pub seq_end: Option<String>,
+    pub chain_hash: Option<String>,
+    pub anchored_at: Option<String>,
+}
+/// A checkpoint record the CALLER holds — normally a chain-verified line of the published roots
+/// file (DEWP §5.4.1). Every field but `root` is optional; a present field is binding.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustedCheckpoint {
+    pub root: String,
+    #[serde(default)]
+    pub seq_start: Option<String>,
+    #[serde(default)]
+    pub seq_end: Option<String>,
+    #[serde(default)]
+    pub entry_count: Option<u64>,
+    #[serde(default)]
+    pub anchored_at: Option<String>,
+    #[serde(default)]
+    pub chain_hash: Option<String>,
+}
+/// Why a proof's prover-supplied leaf counts cannot belong to a checkpoint committing `entry_count`
+/// events (the sum of its blocks' leaf counts), or `None` (DEWP §17.3).
+pub fn leaf_count_mismatch(block_leaf_count: usize, checkpoint_leaf_count: usize, entry_count: Option<u64>) -> Option<String> {
+    let n = entry_count? as u128;
+    let (block, cps) = (block_leaf_count as u128, checkpoint_leaf_count as u128);
+    if cps > n || block + cps > n + 1 || (cps == 1 && block != n) {
+        Some(format!(
+            "proof claims {block} leaves in its block and {cps} block(s) under the checkpoint, which cannot sum to the checkpoint's {n} committed events"
+        ))
+    } else {
+        None
+    }
 }
 #[derive(Debug, Clone, Default)]
 pub struct AnchorQuorumResult {
@@ -428,9 +597,12 @@ pub struct AnchorQuorumResult {
     pub divergence: bool,
     pub reason: Option<String>,
     pub note: Option<String>,
+    /// Authenticated external witness time per issuer (Unix seconds, earliest per issuer),
+    /// including witnesses refused by the time bound.
+    pub witness_times: std::collections::BTreeMap<String, i64>,
 }
 
-fn decode_public_key(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn decode_public_key(s: &str) -> Option<Vec<u8>> {
     if s.contains("BEGIN") {
         let joined = s
             .lines()
@@ -442,73 +614,17 @@ fn decode_public_key(s: &str) -> Option<Vec<u8>> {
     }
 }
 
-/// Recover the salt length encoded in an EMSA-PSS signature. Node/OpenSSL's default signer uses
-/// the maximum salt length while RustCrypto's high-level verifier defaults to the hash length; the
-/// wire format permits both. The full signature is still verified below after this parser chooses
-/// the encoded length.
-fn rsa_pss_salt_len(key: &rsa::RsaPublicKey, signature: &[u8]) -> Option<usize> {
-    use rsa::traits::PublicKeyParts;
-
-    if signature.len() != key.size() {
-        return None;
-    }
-    let signature = rsa::BigUint::from_bytes_be(signature);
-    if &signature >= key.n() {
-        return None;
-    }
-    let em_bits = key.n().bits().checked_sub(1)?;
-    let em_len = (em_bits + 7) / 8;
-    let encoded = signature.modpow(key.e(), key.n()).to_bytes_be();
-    if encoded.len() > em_len || em_len < 34 {
-        return None;
-    }
-    let mut em = vec![0u8; em_len];
-    em[em_len - encoded.len()..].copy_from_slice(&encoded);
-    if em.last().copied() != Some(0xbc) {
-        return None;
-    }
-
-    let db_len = em_len - 32 - 1;
-    let h = &em[db_len..db_len + 32];
-    let mut db = em[..db_len].to_vec();
-    let mut offset = 0usize;
-    let mut counter = 0u32;
-    while offset < db_len {
-        let mut digest = Sha256::new();
-        digest.update(h);
-        digest.update(counter.to_be_bytes());
-        let block = digest.finalize();
-        let take = (db_len - offset).min(block.len());
-        for i in 0..take {
-            db[offset + i] ^= block[i];
-        }
-        offset += take;
-        counter = counter.checked_add(1)?;
-    }
-    let unused_bits = 8 * em_len - em_bits;
-    if unused_bits > 0 {
-        db[0] &= 0xff >> unused_bits;
-    }
-    let delimiter = db.iter().position(|b| *b != 0)?;
-    if db[delimiter] != 1 {
-        return None;
-    }
-    Some(db_len - delimiter - 1)
-}
-
 pub fn verify_signed_anchor(anchor: &SignedAnchor, trusted_key: &str) -> bool {
+    if !anchor.is_well_formed() {
+        return false;
+    }
     let Some(key) = decode_public_key(trusted_key) else {
         return false;
     };
     let Ok(sig) = STANDARD.decode(&anchor.signature) else {
         return false;
     };
-    let digest = anchor_digest_bytes(
-        &anchor.daily_root,
-        &anchor.timestamp,
-        &anchor.issuer,
-        &anchor.algorithm,
-    );
+    let digest = anchor.digest();
     match anchor.algorithm.as_str() {
         "ES256" => crate::parse_p256_public_key(&key)
             .is_some_and(|k| crate::verify_p256_signature(&k, &digest, &sig)),
@@ -530,12 +646,16 @@ pub fn verify_signed_anchor(anchor: &SignedAnchor, trusted_key: &str) -> bool {
                 pss::{Signature, VerifyingKey},
                 RsaPublicKey,
             };
+            use rsa::traits::PublicKeyParts;
+            // DEWP §5.2 RSA-PSS profile: a modulus of at least 2048 bits, SHA-256 with MGF1-SHA-256
+            // and a salt exactly the hash length (32). The salt used to be recovered from the
+            // signature and accepted at any length.
             RsaPublicKey::from_public_key_der(&key)
                 .ok()
+                .filter(|k| k.n().bits() >= 2048)
                 .and_then(|k| {
-                    let salt_len = rsa_pss_salt_len(&k, &sig)?;
                     Signature::try_from(sig.as_slice()).ok().map(|s| {
-                        VerifyingKey::<Sha256>::new_with_salt_len(k, salt_len)
+                        VerifyingKey::<Sha256>::new_with_salt_len(k, 32)
                             .verify(&digest, &s)
                             .is_ok()
                     })
@@ -557,12 +677,100 @@ pub fn verify_anchor_quorum<F>(
 where
     F: Fn(&SignedAnchor) -> Option<String>,
 {
+    verify_anchor_quorum_for(anchors, daily_root, policy, resolve, divergence_anchors, external, None)
+}
+
+fn position_mismatch(a: &SignedAnchor, e: Option<&ExpectedCheckpoint>) -> Option<&'static str> {
+    let e = e?;
+    let differs = |want: &Option<String>, got: &str| want.as_deref().is_some_and(|w| w != got);
+    if differs(&e.seq_start, &a.seq_start) {
+        Some("seqStart")
+    } else if differs(&e.seq_end, &a.seq_end) {
+        Some("seqEnd")
+    } else if differs(&e.chain_hash, &a.chain_hash) {
+        Some("chainHash")
+    } else if differs(&e.anchored_at, &a.timestamp) {
+        Some("timestamp")
+    } else {
+        None
+    }
+}
+
+/// Count an anchor only when its evidence verifies under caller trust, its signed position matches
+/// `expected` where known, and an external witness time lies within
+/// [-ANCHOR_CLOCK_SKEW_SECONDS, max lag] of the checkpoint's claimed time (DEWP §5.3).
+#[allow(clippy::too_many_arguments)]
+pub fn verify_anchor_quorum_for<F>(
+    anchors: &[SignedAnchor],
+    daily_root: &str,
+    policy: &AnchorPolicy,
+    resolve: &F,
+    divergence_anchors: &[SignedAnchor],
+    external: &ExternalAnchorKeys,
+    expected: Option<&ExpectedCheckpoint>,
+) -> AnchorQuorumResult
+where
+    F: Fn(&SignedAnchor) -> Option<String>,
+{
     let trusted = |a: &SignedAnchor| policy.trusted_issuers.iter().any(|i| i == &a.issuer);
+    let trusted_issuer_count = policy.trusted_issuers.iter().collect::<std::collections::BTreeSet<_>>().len();
+    // (verified, authenticated witness time in Unix seconds for external anchors)
+    let verify = |a: &SignedAnchor| -> (bool, Option<i64>) {
+        if !a.is_well_formed() {
+            return (false, None);
+        }
+        match a.kind.as_deref() {
+            Some("REKOR") => {
+                let scoped = rekor_issuer_allowed(external.rekor_issuer.as_deref(), &a.issuer, trusted_issuer_count);
+                if !scoped { return (false, None); }
+                if let (Some(k), Some(e)) = (&external.rekor, crate::rekor::parse_rekor_evidence(a.evidence.as_deref())) {
+                    let v = crate::rekor::verify_rekor_anchor_pinned(&e, a, k, &external.rekor_submitter_keys);
+                    let t = v.integrated_time.and_then(|t| i64::try_from(t).ok());
+                    (v.ok && t.is_some(), t)
+                } else { (false, None) }
+            }
+            Some("RFC3161") => match external.rfc3161.get(&a.issuer) {
+                Some(t) => {
+                    let v = crate::rfc3161::verify_rfc3161_anchor(a, t);
+                    (v.ok && v.gen_time.is_some(), v.gen_time)
+                }
+                None => (false, None),
+            },
+            None | Some("SELF") => (resolve(a).is_some_and(|k| verify_signed_anchor(a, &k)), None),
+            _ => (false, None),
+        }
+    };
+    let max_lag = policy.max_anchor_lag_seconds.unwrap_or(DEFAULT_MAX_ANCHOR_LAG_SECONDS);
+    // (lag in ms, inside the §5.3 window around the anchor's own signed checkpoint time)
+    let within_bound = |a: &SignedAnchor, witness: i64| -> (i64, bool) {
+        let claimed = parse_anchor_timestamp_ms(&a.timestamp).unwrap_or(i64::MIN / 2);
+        let lag = witness.saturating_mul(1000).saturating_sub(claimed);
+        (lag, lag >= -ANCHOR_CLOCK_SKEW_SECONDS * 1000 && lag <= max_lag.saturating_mul(1000))
+    };
+    // Divergence is fatal, so its evidence meets the quorum rules (DEWP §5.3): this checkpoint's seq
+    // range, an external witness inside the time bound of the anchor's signed time, and — for Rekor,
+    // which logs any digest anyone submits — a pinned producer submission key. Chain hash and claimed
+    // time are not compared: both commit to the root, so a rewritten checkpoint differs in them.
     for a in divergence_anchors
         .iter()
         .filter(|a| trusted(a) && a.daily_root != daily_root)
     {
-        if resolve(a).is_some_and(|k| verify_signed_anchor(a, &k)) {
+        // An anchor whose own signed range names another checkpoint is not divergence evidence.
+        if let Some(e) = expected {
+            if e.seq_start.as_deref().is_some_and(|s| s != a.seq_start)
+                || e.seq_end.as_deref().is_some_and(|s| s != a.seq_end)
+            {
+                continue;
+            }
+        }
+        if a.kind.as_deref() == Some("REKOR") && external.rekor_submitter_keys.is_empty() {
+            continue;
+        }
+        let (ok, witness) = verify(a);
+        if ok && witness.is_some_and(|w| !within_bound(a, w).1) {
+            continue;
+        }
+        if ok {
             return AnchorQuorumResult {
                 divergence: true,
                 reason: Some(format!(
@@ -574,30 +782,47 @@ where
         }
     }
     let mut issuers = std::collections::BTreeSet::new();
+    let mut witness_times = std::collections::BTreeMap::<String, i64>::new();
+    let mut notes = Vec::<String>::new();
     let mut tsa = 0;
     for a in anchors
         .iter()
         .filter(|a| trusted(a) && a.daily_root == daily_root)
     {
-        match a.kind.as_deref() {
-            Some("REKOR") => {
-                if let (Some(k), Some(e)) = (
-                    &external.rekor,
-                    crate::rekor::parse_rekor_evidence(a.evidence.as_deref()),
-                ) {
-                    if crate::rekor::verify_rekor_anchor(&e, a, k).ok {
-                        issuers.insert(a.issuer.clone());
-                    }
-                }
-            }
-            Some("RFC3161") => tsa += 1,
-            None | Some("SELF") => {
-                if resolve(a).is_some_and(|k| verify_signed_anchor(a, &k)) {
-                    issuers.insert(a.issuer.clone());
-                }
-            }
-            _ => {}
+        if let Some(m) = position_mismatch(a, expected) {
+            notes.push(format!("anchor from {} binds a different checkpoint {m}; it does not count", a.issuer));
+            continue;
         }
+        let (verified, witness) = verify(a);
+        if a.kind.as_deref()==Some("RFC3161") && !verified { tsa += 1; }
+        if !verified {
+            continue;
+        }
+        if let Some(w) = witness {
+            let entry = witness_times.entry(a.issuer.clone()).or_insert(w);
+            if w < *entry {
+                *entry = w;
+            }
+            // A checkpoint named without its time leaves only the anchor's producer-chosen timestamp
+            // to bound the witness against, which bounds nothing (DEWP §5.3).
+            if expected.is_some_and(|e| e.anchored_at.is_none()) {
+                notes.push(format!(
+                    "anchor from {} has an external witness time but no trusted checkpoint time to hold it to (DEWP §5.3); it does not count",
+                    a.issuer
+                ));
+                continue;
+            }
+            let (lag, inside) = within_bound(a, w);
+            if !inside {
+                notes.push(format!(
+                    "anchor from {} was witnessed {}s from its checkpoint time; it does not count",
+                    a.issuer,
+                    lag / 1000
+                ));
+                continue;
+            }
+        }
+        issuers.insert(a.issuer.clone());
     }
     let present = anchors
         .iter()
@@ -611,6 +836,9 @@ where
     };
     let count = issuers.len();
     let ok = count >= need && count >= 1;
+    if tsa > 0 {
+        notes.push(format!("{tsa} RFC 3161 TSA anchor(s) over this root are not verified; configure RFC3161 trust/OpenSSL or inspect evidence"));
+    }
     AnchorQuorumResult {
         ok,
         verified_issuers: issuers.into_iter().collect(),
@@ -620,17 +848,25 @@ where
         } else {
             Some(format!("anchor quorum not met ({count}/{need})"))
         },
-        note: if tsa > 0 {
-            Some(format!("{tsa} RFC 3161 TSA anchor(s) over this root are present but not verifiable offline by this tool"))
-        } else {
-            None
-        },
+        note: if notes.is_empty() { None } else { Some(notes.join("; ")) },
+        witness_times,
     }
+}
+
+fn rekor_issuer_allowed(configured: Option<&str>, anchor_issuer: &str, trusted_issuer_count: usize) -> bool {
+    configured == Some(anchor_issuer) || (configured.is_none() && trusted_issuer_count == 1)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rekor_trust_cannot_be_reattributed_across_issuers() {
+        assert!(!rekor_issuer_allowed(Some("rekor.example"), "tsa.example", 2));
+        assert!(!rekor_issuer_allowed(None, "rekor.example", 2));
+        assert!(rekor_issuer_allowed(None, "rekor.example", 1));
+    }
 
     fn vectors() -> Value {
         let path = concat!(
@@ -845,6 +1081,9 @@ mod tests {
                 a["timestamp"].as_str().unwrap(),
                 a["issuer"].as_str().unwrap(),
                 a["algorithm"].as_str().unwrap(),
+                a["seqStart"].as_str().unwrap(),
+                a["seqEnd"].as_str().unwrap(),
+                a["chainHash"].as_str().unwrap(),
             ),
             v["anchor"]["digestHex"].as_str().unwrap()
         );
@@ -870,9 +1109,14 @@ mod tests {
             let timestamp = a["timestamp"].as_str().unwrap();
             let issuer = a["issuer"].as_str().unwrap();
             let algorithm = a["algorithm"].as_str().unwrap();
+            let (seq_start, seq_end, chain_hash) = (
+                a["seqStart"].as_str().unwrap(),
+                a["seqEnd"].as_str().unwrap(),
+                a["chainHash"].as_str().unwrap(),
+            );
             if let Some(digest_hex) = c["digestHex"].as_str() {
                 assert_eq!(
-                    anchor_digest_hex(daily_root, timestamp, issuer, algorithm),
+                    anchor_digest_hex(daily_root, timestamp, issuer, algorithm, seq_start, seq_end, chain_hash),
                     digest_hex,
                     "{name}"
                 );
@@ -882,6 +1126,9 @@ mod tests {
                 timestamp,
                 issuer,
                 algorithm,
+                seq_start,
+                seq_end,
+                chain_hash,
                 a["signature"].as_str().unwrap(),
                 spki,
             );
@@ -891,21 +1138,29 @@ mod tests {
         // Fail-closed pins outside the committed cases: an unsupported algorithm and a garbage key
         // must refuse rather than guess.
         let a = &cases[0]["anchor"];
+        let s = |k: &str| a[k].as_str().unwrap();
         assert!(!verify_anchor_signature(
-            a["dailyRoot"].as_str().unwrap(),
-            a["timestamp"].as_str().unwrap(),
-            a["issuer"].as_str().unwrap(),
-            "Ed25519",
-            a["signature"].as_str().unwrap(),
-            spki,
+            s("dailyRoot"), s("timestamp"), s("issuer"), "Ed25519",
+            s("seqStart"), s("seqEnd"), s("chainHash"), s("signature"), spki,
         ));
         assert!(!verify_anchor_signature(
-            a["dailyRoot"].as_str().unwrap(),
-            a["timestamp"].as_str().unwrap(),
-            a["issuer"].as_str().unwrap(),
-            a["algorithm"].as_str().unwrap(),
-            a["signature"].as_str().unwrap(),
-            "not-base64!!",
+            s("dailyRoot"), s("timestamp"), s("issuer"), s("algorithm"),
+            s("seqStart"), s("seqEnd"), s("chainHash"), s("signature"), "not-base64!!",
         ));
+        // The position is signed and required: an anchor without its chain hash never verifies.
+        assert!(!verify_anchor_signature(
+            s("dailyRoot"), s("timestamp"), s("issuer"), s("algorithm"),
+            s("seqStart"), s("seqEnd"), "", s("signature"), spki,
+        ));
+    }
+
+    #[test]
+    fn anchor_timestamps_are_parsed_strictly() {
+        assert_eq!(parse_anchor_timestamp_ms("1970-01-01T00:00:01.500Z"), Some(1500));
+        assert_eq!(parse_anchor_timestamp_ms("2026-09-01T12:00:00.000Z"), Some(1_788_264_000_000));
+        assert_eq!(parse_anchor_timestamp_ms("2026-02-30T00:00:00.000Z"), None);
+        assert_eq!(parse_anchor_timestamp_ms("2026-09-16T00:00:00Z"), None);
+        assert_eq!(parse_anchor_timestamp_ms("2026-09-16T00:00:60.000Z"), None);
+        assert_eq!(parse_anchor_timestamp_ms("2028-02-29T00:00:00.000Z").is_some(), true);
     }
 }

@@ -9,6 +9,14 @@ fn merged(base: &Value, overrides: &Value) -> Value {
     result
 }
 
+/// A case's optional relying-party requirement floor (DIV §5 step 3d).
+fn floor(raw: &Value) -> Option<RequirementFloor> {
+    if raw.is_null() {
+        return None;
+    }
+    Some(serde_json::from_value(raw.clone()).unwrap())
+}
+
 fn options(raw: &Value) -> VerifyOptions {
     VerifyOptions {
         expected_origin: raw["expectedOrigin"].as_str().map(str::to_owned),
@@ -17,6 +25,8 @@ fn options(raw: &Value) -> VerifyOptions {
             .as_str()
             .map(|s| parse_rfc3339_utc_secs(s).unwrap()),
         clock_skew_seconds: raw["clockSkewSeconds"].as_i64(),
+        allow_offline: raw["allowOffline"].as_bool().unwrap_or(false),
+        require_user_verification: raw["requireUserVerification"].as_bool(),
         ..Default::default()
     }
 }
@@ -31,16 +41,54 @@ fn shared_platform_and_authority_receipts() {
         .unwrap(),
     )
     .unwrap();
-    let keys: BTreeMap<String, Value> = vectors["keys"]
-        .as_array()
+    let keys = key_table(&vectors["keys"]);
+    run_approval_cases(&vectors["approvals"], &keys);
+    run_platform_cases(&vectors["platform"], &keys);
+    run_authority_cases(&vectors["agentAuthority"], &keys);
+}
+
+/// The `verifierInputHardening` section (2026-09-27 review L15-L18, I7): its own keys, the same
+/// harness as the top-level sections of the same names. Its `bundles` run in bundle.rs.
+#[test]
+fn shared_verifier_input_hardening_receipts() {
+    let vectors: Value = serde_json::from_str(
+        &std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/vectors/verifier-parity-vectors.json"
+        ))
+        .unwrap(),
+    )
+    .unwrap();
+    let section = &vectors["verifierInputHardening"];
+    let keys = key_table(&section["keys"]);
+    for part in ["approvals", "platform", "agentAuthority"] {
+        assert!(!section[part]["cases"].as_array().unwrap().is_empty(), "{part}");
+    }
+    run_approval_cases(&section["approvals"], &keys);
+    run_platform_cases(&section["platform"], &keys);
+    run_authority_cases(&section["agentAuthority"], &keys);
+}
+
+fn key_table(raw: &Value) -> BTreeMap<String, Value> {
+    raw.as_array()
         .unwrap()
         .iter()
         .map(|key| (key["id"].as_str().unwrap().to_owned(), key.clone()))
-        .collect();
-    let section = &vectors["approvals"];
+        .collect()
+}
+
+fn run_approval_cases(section: &Value, keys: &BTreeMap<String, Value>) {
     for case in section["cases"].as_array().unwrap() {
         let e = merged(&section["expected"], &case["expected"]);
+        // A WEBAUTHN witness verifies under the credential's COSE_Key; such cases say so explicitly.
+        let encoding = if case["approverKeyEncoding"].as_str() == Some("cose") {
+            "coseB64"
+        } else {
+            "spkiB64"
+        };
         let expected = Expected {
+            // DIV §5 step 3d: an optional relying-party requirement floor.
+            requirement: floor(&e["requirement"]),
             target: e["target"].as_str().unwrap().into(),
             nonce: e["nonce"].as_str().unwrap().into(),
             action_type: e["actionType"].as_str().unwrap().into(),
@@ -51,7 +99,7 @@ fn shared_platform_and_authority_receipts() {
                     .unwrap()
                     .iter()
                     .map(|id| {
-                        keys[id.as_str().unwrap()]["spkiB64"]
+                        keys[id.as_str().unwrap()][encoding]
                             .as_str()
                             .unwrap()
                             .to_owned()
@@ -92,7 +140,9 @@ fn shared_platform_and_authority_receipts() {
             );
         }
     }
-    let section = &vectors["platform"];
+}
+
+fn run_platform_cases(section: &Value, keys: &BTreeMap<String, Value>) {
     for case in section["cases"].as_array().unwrap() {
         let e = merged(&section["expected"], &case["expected"]);
         let expected = PlatformReceiptExpectation {
@@ -136,7 +186,9 @@ fn shared_platform_and_authority_receipts() {
             );
         }
     }
-    let section = &vectors["agentAuthority"];
+}
+
+fn run_authority_cases(section: &Value, keys: &BTreeMap<String, Value>) {
     for case in section["cases"].as_array().unwrap() {
         let e = merged(&section["expected"], &case["expected"]);
         let mappings: BTreeMap<String, Vec<String>> = e["approverDids"]
@@ -179,6 +231,7 @@ fn shared_platform_and_authority_receipts() {
             },
             target: e["target"].as_str().unwrap().into(),
             agent_did: e["agentDid"].as_str().unwrap().into(),
+            requirement: floor(&e["requirement"]),
         };
         let receipt: ApprovalReceipt = serde_json::from_value(case["receipt"].clone()).unwrap();
         let result = verify_agent_authority(
@@ -193,6 +246,9 @@ fn shared_platform_and_authority_receipts() {
             case["name"],
             result
         );
+        if let (Err(reason), Some(needle)) = (&result, case["reasonIncludes"].as_str()) {
+            assert!(reason.contains(needle), "{}: {reason}", case["name"]);
+        }
         if let Ok(authority) = result {
             if let Some(signers) = case.get("signers") {
                 assert_eq!(

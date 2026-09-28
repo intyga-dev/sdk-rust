@@ -63,6 +63,8 @@ pub struct AuthorizeOptions {
 pub struct AuthorizeResponse {
     pub nonce: String,
     pub status: ApprovalStatus,
+    #[serde(rename = "agentContext", default)]
+    pub agent_context: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -75,6 +77,9 @@ pub struct ConsumeResult {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ApprovalResult {
     pub status: ApprovalStatus,
+    /// Issuer context retained from challenge creation, independently of the receipt.
+    #[serde(rename = "agentContext", default)]
+    pub agent_context: Option<Value>,
     #[serde(rename = "signatureHash", default)]
     pub signature_hash: Option<String>,
     #[serde(default)]
@@ -120,6 +125,9 @@ pub trait Transport {
 /// Options for constructing a [`Client`].
 #[derive(Debug, Clone, Default)]
 pub struct ClientOptions {
+    /// Must be `https://`. Plain `http://` is accepted only for a loopback host (`localhost`,
+    /// `127.0.0.0/8`, `::1`) for local development; anything else is refused at construction,
+    /// because every request carries a bearer token or client secret.
     pub gateway_url: String,
     /// A pre-minted bearer token (agent or human). If None, `client_id`/`client_secret` are exchanged.
     pub token: Option<String>,
@@ -176,13 +184,17 @@ pub struct Client<T: Transport> {
 }
 
 impl<T: Transport> Client<T> {
-    pub fn with_transport(opts: ClientOptions, transport: T) -> Self {
-        Client {
+    /// Construct a client over a caller-supplied [`Transport`]. Errs unless `gateway_url` is
+    /// `https://` (or `http://` to a loopback host), so a misconfiguration fails before any
+    /// credential is sent.
+    pub fn with_transport(mut opts: ClientOptions, transport: T) -> Result<Self, String> {
+        opts.gateway_url = validate_gateway_url(&opts.gateway_url)?;
+        Ok(Client {
             opts,
             transport,
             cached: None,
             now: Instant::now,
-        }
+        })
     }
 
     /// Resolve a bearer token: the provided one, a cached exchange, or a fresh client-credentials exchange.
@@ -345,18 +357,25 @@ impl<T: Transport> Client<T> {
             timeout_seconds: Some((timeout.as_secs_f64().ceil()) as u64),
             ..opts.authorize.clone()
         };
+        let deadline = Instant::now().checked_add(timeout).ok_or("approval timeout is too large")?;
         let auth_res = self.authorize(action_description, &authorize)?;
         let nonce = auth_res.nonce;
 
-        let deadline = Instant::now() + timeout;
+        let expired = || ApprovalResult {
+            status: ApprovalStatus::Expired, signature_hash: None, receipt: None,
+            nonce: Some(nonce.clone()), agent_context: auth_res.agent_context.clone(),
+        };
         let mut consecutive_errors = 0u32;
         loop {
+            if Instant::now() >= deadline { return Ok(expired()); }
             // A human approval can outlast a transient 502 — don't discard the whole wait over one bad poll.
             match self.status(&nonce) {
                 Ok(mut r) => {
+                    if Instant::now() >= deadline { return Ok(expired()); }
                     consecutive_errors = 0;
                     if r.status != ApprovalStatus::Pending {
                         r.nonce = Some(nonce);
+                        r.agent_context = auth_res.agent_context;
                         return Ok(r);
                     }
                 }
@@ -373,21 +392,24 @@ impl<T: Transport> Client<T> {
             if Instant::now() >= deadline {
                 return Ok(ApprovalResult {
                     status: ApprovalStatus::Expired,
+                    agent_context: auth_res.agent_context,
                     signature_hash: None,
                     receipt: None,
                     nonce: Some(nonce),
                 });
             }
-            std::thread::sleep(interval);
+            std::thread::sleep(interval.min(deadline.saturating_duration_since(Instant::now())));
         }
     }
 
     /// Public witness lookup: has this document hash been signed, by whom, and when?
     pub fn verify(&mut self, document_hash: &str) -> Result<VerifyResult, String> {
-        // Public endpoint — no auth header needed, but reusing do_json keeps behaviour uniform.
-        let path = format!("/verify/{}", urlencode(document_hash));
-        let res = self.do_json("GET", &path, None)?;
-        serde_json::from_str(&res).map_err(|e| format!("bad verify response: {}", e))
+        let url = format!("{}/verify/{}", self.opts.gateway_url, urlencode(document_hash));
+        let res = self.transport.request("GET", &url, &[], None)?;
+        if !(200..300).contains(&res.status) {
+            return Err(format!("verify failed: {}", res.status));
+        }
+        serde_json::from_str(&res.body).map_err(|e| format!("bad verify response: {}", e))
     }
 
     /// Perform an authenticated JSON request, returning the response body on 2xx.
@@ -433,10 +455,55 @@ impl<T: Transport> Client<T> {
 
 #[cfg(feature = "ureq-transport")]
 impl Client<UreqTransport> {
-    /// Construct a client using the built-in blocking `ureq` transport.
-    pub fn new(opts: ClientOptions) -> Self {
+    /// Construct a client using the built-in blocking `ureq` transport. Errs unless `gateway_url`
+    /// is `https://` (or `http://` to a loopback host, for local development).
+    pub fn new(opts: ClientOptions) -> Result<Self, String> {
         Client::with_transport(opts, UreqTransport)
     }
+}
+
+/// Return `raw` without trailing slashes, or an error unless it is `https://` or `http://` to a
+/// loopback host. The same rule every Intyga client applies (TypeScript, Go, Python, Java): change
+/// them together. Parsed by hand to keep the crate free of a URL dependency.
+fn validate_gateway_url(raw: &str) -> Result<String, String> {
+    let refuse = |shown: &str| {
+        format!(
+            "gateway_url must use https:// (got {shown}): Intyga clients send credentials on every \
+             request and refuse plain http except to a loopback host (localhost, 127.0.0.0/8, ::1) \
+             for local development"
+        )
+    };
+    let (scheme, rest) = raw
+        .split_once("://")
+        .ok_or_else(|| format!("gateway_url is not a valid absolute URL: {raw:?}"))?;
+    // Authority ends at the first '/', '?' or '#'; userinfo (if any) ends at the last '@'.
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    if host_port.is_empty() {
+        return Err(format!("gateway_url is not a valid absolute URL: {raw:?}"));
+    }
+    let trimmed = raw.trim_end_matches('/').to_string();
+    match scheme.to_ascii_lowercase().as_str() {
+        "https" => Ok(trimmed),
+        "http" if is_loopback_host(host_port) => Ok(trimmed),
+        _ => Err(refuse(&format!("{scheme}://{host_port}"))),
+    }
+}
+
+/// `host_port` is the URL authority without userinfo: `host`, `host:port`, `[v6]` or `[v6]:port`.
+fn is_loopback_host(host_port: &str) -> bool {
+    let host = if let Some(v6) = host_port.strip_prefix('[') {
+        match v6.split_once(']') {
+            Some((addr, _)) => return addr.parse::<std::net::Ipv6Addr>().is_ok_and(|a| a.is_loopback()),
+            None => return false,
+        }
+    } else {
+        host_port.split(':').next().unwrap_or("")
+    };
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    host.parse::<std::net::Ipv4Addr>().is_ok_and(|a| a.octets()[0] == 127)
 }
 
 /// The built-in blocking HTTP transport, backed by `ureq`.
@@ -452,7 +519,8 @@ impl Transport for UreqTransport {
         headers: &[(&str, &str)],
         body: Option<&str>,
     ) -> Result<HttpResponse, String> {
-        let mut req = ureq::request(method, url);
+        let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).redirects(0).build();
+        let mut req = agent.request(method, url);
         for (k, v) in headers {
             req = req.set(k, v);
         }
@@ -624,7 +692,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         client
             .authorize(
                 "wire",
@@ -660,6 +728,109 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "ureq-transport")]
+    fn default_transport_returns_redirect_without_following() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut buf = [0u8; 4096];
+            stream.read(&mut buf).unwrap();
+            stream.write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /sink\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        });
+        let result = UreqTransport.request("POST", &format!("http://{addr}/oauth/token"),
+            &[("authorization", "Basic test")], None).unwrap();
+        assert_eq!(result.status, 307);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn construction_refuses_a_non_https_gateway() {
+        struct Never;
+        impl Transport for Never {
+            fn request(&self, _: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, String> {
+                panic!("no request may be sent")
+            }
+        }
+        let build = |url: &str| {
+            Client::with_transport(ClientOptions { gateway_url: url.into(), token: Some("t".into()), ..Default::default() }, Never)
+        };
+        for bad in [
+            "http://gw.example",
+            "http://10.0.0.5:8787",
+            "http://128.0.0.1",
+            "http://localhost.evil.example",
+            "http://127.0.0.1.nip.io",
+            "http://[::2]",
+            "http://localhost@gw.example",
+            "ftp://gw.example",
+            "gw.example",
+            "https://",
+            "",
+        ] {
+            assert!(build(bad).is_err(), "accepted {bad:?}");
+        }
+        let err = build("http://gw.example").err().unwrap();
+        assert!(err.contains("must use https://"), "{err}");
+        for ok in [
+            "https://gw.example",
+            "HTTPS://gw.example",
+            "http://localhost:8787",
+            "http://LOCALHOST",
+            "http://127.0.0.1:8787",
+            "http://127.200.3.4",
+            "http://[::1]:8787",
+        ] {
+            assert!(build(ok).is_ok(), "refused {ok:?}");
+        }
+        assert_eq!(build("https://gw.example//").unwrap().opts.gateway_url, "https://gw.example");
+    }
+
+    #[test]
+    fn late_approval_is_expired() {
+        struct Slow;
+        impl Transport for Slow {
+            fn request(&self, method: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, String> {
+                if method == "POST" {
+                    return Ok(HttpResponse { status: 200, body: r#"{"nonce":"late","status":"PENDING"}"#.into() });
+                }
+                std::thread::sleep(Duration::from_millis(30));
+                Ok(HttpResponse { status: 200, body: r#"{"status":"APPROVED"}"#.into() })
+            }
+        }
+        let mut client = Client::with_transport(ClientOptions { gateway_url: "https://gw.example".into(), token: Some("t".into()), ..Default::default() }, Slow).unwrap();
+        let result = client.require_approval("wire", &RequireApprovalOptions {
+            authorize: AuthorizeOptions { target: Some("prod".into()), ..Default::default() },
+            timeout: Duration::from_millis(10), interval: Duration::from_millis(1),
+        }).unwrap();
+        assert_eq!(result.status, ApprovalStatus::Expired);
+        assert_eq!(result.nonce.as_deref(), Some("late"));
+    }
+
+    #[test]
+    fn issued_context_survives_poll_and_public_lookup_needs_no_credentials() {
+        let transport = MockTransport::new()
+            .on("POST", "/authorize", vec![(200, r#"{"nonce":"ctx","status":"PENDING","agentContext":{"nbf":"issued"}}"#)])
+            .on("GET", "/authorize/ctx", vec![(200, r#"{"status":"APPROVED","agentContext":{"nbf":"wrong"}}"#)]);
+        let mut client = Client::with_transport(ClientOptions {
+            gateway_url: "https://gw.example".into(), token: Some("t".into()), ..Default::default()
+        }, transport).unwrap();
+        let result = client.require_approval("wire", &fast_opts(AuthorizeOptions {
+            target: Some("prod".into()), ..Default::default()
+        })).unwrap();
+        assert_eq!(result.agent_context.unwrap()["nbf"], "issued");
+        let transport = MockTransport::new().on("GET", "/verify/hash", vec![(200,
+            r#"{"verified":true,"status":"SIGNED","documentHash":"hash"}"#)]);
+        let mut public = Client::with_transport(ClientOptions {
+            gateway_url: "https://gw.example".into(), ..Default::default()
+        }, transport).unwrap();
+        assert!(public.verify("hash").unwrap().verified);
+        assert!(public.transport.seen_auth.borrow().is_empty());
+    }
+
+    #[test]
     fn require_approval_happy_path() {
         let transport = MockTransport::new()
             .on("POST", "/authorize", vec![(200, r#"{"nonce":"n_abc","status":"PENDING"}"#)])
@@ -681,7 +852,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let res = client
             .require_approval(
                 "Wire $5,000 to Acme Corp",
@@ -718,7 +889,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let res = client
             .require_approval(
                 "delete prod",
@@ -746,7 +917,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         assert_eq!(client.token().unwrap(), "exchanged");
         // Second call is served from cache (mock has a single-use route but cache avoids re-calling).
         assert_eq!(client.token().unwrap(), "exchanged");
@@ -782,7 +953,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let base = Instant::now();
         set_now(base);
         client.now = fake_now;
@@ -835,7 +1006,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let res = client
             .authorize(
                 "wire",
@@ -875,7 +1046,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let err = client
             .status("n_x")
             .expect_err("a 401 after the one retry must surface, not loop");
@@ -903,7 +1074,7 @@ mod tests {
                 client_secret: Some("secret".into()),
             },
             transport,
-        );
+        ).unwrap();
         let err = client
             .authorize(
                 "wire",
@@ -930,7 +1101,7 @@ mod tests {
                 ..Default::default()
             },
             transport,
-        );
+        ).unwrap();
         let out = client
             .consume(
                 "n_1",
@@ -954,7 +1125,7 @@ mod tests {
                 ..Default::default()
             },
             MockTransport::new(),
-        );
+        ).unwrap();
 
         let err = client
             .authorize(

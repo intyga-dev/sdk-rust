@@ -30,7 +30,7 @@ let mut client = Client::new(ClientOptions {
     client_id: std::env::var("INTYGA_CLIENT_ID").ok(),
     client_secret: std::env::var("INTYGA_CLIENT_SECRET").ok(),
     ..Default::default()
-});
+})?;
 
 let params = json!({ "cluster": "prod-db-1" });
 
@@ -61,7 +61,14 @@ let expected = Expected {
     params: params.clone(),
     approvers: trusted_approver_anchor(),
 };
-verify_approval_receipt_with_options(receipt, &expected, &VerifyOptions::default())?;
+// REQUIRED for passkey receipts (the normal flow): the approval console's exact origin and RP ID,
+// from the trust-anchor file exported in the console (its `webauthn` block).
+let opts = VerifyOptions {
+    expected_origin: std::env::var("INTYGA_WEBAUTHN_ORIGIN").ok(),
+    expected_rp_id: std::env::var("INTYGA_WEBAUTHN_RP_ID").ok(),
+    ..Default::default()
+};
+verify_approval_receipt_with_options(receipt, &expected, &opts)?;
 
 // Redeem it exactly once, immediately before the action runs. Same target, same params: this is
 // what makes the approval single-use and re-binds it to what is about to execute.
@@ -76,6 +83,8 @@ if !c.ok {
 }
 ```
 
+`Client::new` and `Client::with_transport` return an error unless `gateway_url` is `https://`; plain `http://` is accepted only for a loopback host (`localhost`, `127.0.0.0/8`, `::1`) for local development, and the built-in transport never follows redirects.
+
 With `client_id`/`client_secret`, the client exchanges them for a bearer token and re-exchanges automatically shortly before the `expires_in` the gateway reports (and once more on a `401`), so a long-lived client or a long `require_approval` wait never outlives its token. A `token` you pass yourself is used as-is and never refreshed.
 
 ## Bring your own HTTP client
@@ -83,7 +92,7 @@ With `client_id`/`client_secret`, the client exchanges them for a bearer token a
 The client is generic over a pluggable `Transport`. `Client::new(..)` uses a built-in blocking `ureq` transport (default feature `ureq-transport`); disable it and implement `Transport` to route requests through your own async/instrumented HTTP stack:
 
 ```rust
-let client = Client::with_transport(opts, MyTransport);
+let client = Client::with_transport(opts, MyTransport)?;
 ```
 
 ## Also available in

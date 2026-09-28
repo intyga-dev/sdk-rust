@@ -16,12 +16,39 @@ use sha2::{Digest, Sha256};
 // WebAuthn authenticatorData flag bits (WebAuthn L3 §6.1).
 const AUTH_DATA_FLAG_UP: u8 = 0x01; // User Present
 const AUTH_DATA_FLAG_UV: u8 = 0x04; // User Verified
+const AUTH_DATA_FLAG_BE: u8 = 0x08; // Backup Eligible — the credential may be synced to other devices
+const AUTH_DATA_FLAG_BS: u8 = 0x10; // Backup State — the credential is currently backed up
+
+/// Under a signed `require_hardware_key`, a WEBAUTHN witness whose authenticatorData carries the
+/// Backup Eligible or Backup State flag cannot count (DIV §4.4.5 rule 6). The flags are covered by the
+/// assertion signature, so a relying party can catch an issuer that let a synced passkey sign a
+/// hardware-pinned action. BE=0 is the authenticator's own claim, not attestation. Called only for a
+/// witness that already verified, so authenticatorData decodes to at least 37 bytes.
+pub(crate) fn backup_flags_problem(witness: &ApprovalWitness) -> Option<String> {
+    if witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+        return None;
+    }
+    let encoded = witness.authenticator_data.as_deref()?;
+    match decode_base64_flexible(encoded) {
+        Ok(auth_data) if auth_data.len() >= 37 => {
+            if auth_data[32] & (AUTH_DATA_FLAG_BE | AUTH_DATA_FLAG_BS) == 0 {
+                None
+            } else {
+                Some(format!(
+                    "signer {} used a backup-eligible (synced) passkey — authenticatorData BE/BS flag set — but the signed policy requires a hardware-backed WebAuthn credential",
+                    witness.signer_did
+                ))
+            }
+        }
+        _ => Some("authenticatorData is unreadable".to_string()),
+    }
+}
 
 /// Accepts both base64url — the DIV §4.4.2 wire form, which browsers and the gateway emit
 /// unpadded — and standard base64 (legacy receipts, older vectors), padded or not. The alphabets
 /// differ only in characters 62/63 (`+/` vs `-_`), so normalizing is lossless and cannot make an
 /// invalid encoding valid.
-fn decode_base64_flexible(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
+pub(crate) fn decode_base64_flexible(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
     let mut normalized: String = s
         .chars()
         .map(|c| match c {
@@ -227,6 +254,9 @@ struct ClientData {
     /// (W3C WebAuthn L3 §7.2 step 9).
     #[serde(rename = "crossOrigin", default)]
     cross_origin: bool,
+    /// WebAuthn L3: the top-level page when the ceremony ran in a frame.
+    #[serde(rename = "topOrigin", default)]
+    top_origin: Option<String>,
 }
 
 /// Verify one WEBAUTHN witness against an already-TRUSTED key. Requires `opts.expected_origin` and
@@ -272,6 +302,19 @@ pub(crate) fn verify_webauthn_witness(
     if client_data.cross_origin && !opts.allow_cross_origin.unwrap_or(false) {
         return Err(
             "assertion was produced in a cross-origin frame (crossOrigin=true)".to_string(),
+        );
+    }
+    // A topOrigin that differs from origin is the same embedding reported another way, refused
+    // exactly like crossOrigin=true (DIV §4.4.5 rule 5) — the gateway refuses it at ingest.
+    if client_data
+        .top_origin
+        .as_deref()
+        .is_some_and(|top| top != client_data.origin)
+        && !opts.allow_cross_origin.unwrap_or(false)
+    {
+        return Err(
+            "assertion was produced in a frame embedded by another origin (topOrigin differs from origin)"
+                .to_string(),
         );
     }
     let expected_challenge = URL_SAFE_NO_PAD.encode(receipt.canonical_payload.as_bytes());

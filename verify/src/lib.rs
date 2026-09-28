@@ -15,6 +15,7 @@ pub mod bundle;
 pub mod chain;
 pub mod ledger;
 pub mod rekor;
+pub mod rfc3161;
 mod webauthn;
 
 /// DIV protocol version (docs/DIV.md v1).
@@ -200,7 +201,8 @@ pub struct RequesterAttestation {
 /// 1-of-1 one, so a relying party still has to trust the gateway for the whole policy. Offline
 /// checkability differs per field: `required_approvals` and `requester_cannot_approve` are fully
 /// verifiable; `require_hardware_key` only partially (an assertion proves WebAuthn, not the
-/// authenticator model); `allowed_aaguids` not at all (the AAGUID is registration data).
+/// authenticator model); `allowed_aaguids` not at all (the AAGUID is registration data) — but a
+/// non-empty allowlist is refused exactly like `require_hardware_key` for bare-key and offline witnesses.
 /// `signer_class` is partially checkable: a WEBAUTHN witness's UV flag corroborates a human
 /// ceremony, an ES256 witness carries no class evidence — but the verifier's own rule is absolute:
 /// refuse any value it does not recognize (`"human"` is the only class defined today, DIV §4.3.2).
@@ -214,6 +216,14 @@ pub struct ApprovalRequirement {
     pub requester_cannot_approve: bool,
     #[serde(default)]
     pub signer_class: String,
+}
+
+impl ApprovalRequirement {
+    /// `require_hardware_key`, or a non-empty `allowed_aaguids` model allowlist. A bare key satisfies
+    /// neither and neither can be met offline (DIV §4.3.2), so every check treats them alike.
+    pub fn requires_hardware_credential(&self) -> bool {
+        self.require_hardware_key || !self.allowed_aaguids.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -321,6 +331,68 @@ pub struct AgentAuthorityExpectation {
     pub approvers: ApproverTrustAnchor,
     pub target: String,
     pub agent_did: String,
+    /// STRONGLY RECOMMENDED: YOUR sealing policy for agent authority (DIV §5b.3, §5 step 3d). `None`
+    /// enforces only the sealers' own stated quorum. See [`RequirementFloor`].
+    pub requirement: Option<RequirementFloor>,
+}
+
+/// The MINIMUM approval requirement the relying party's own policy demands (DIV §5 step 3d).
+///
+/// The signed requirement is authored by whoever composed the bytes the approvers signed — the
+/// issuer, or any one approver composing their own payload — so its signature protects it against
+/// third parties but NOT against the signers the quorum constrains. Without a floor a verifier proves
+/// only the signers' OWN stated quorum: an approver who is also the requester can sign
+/// `{requiredApprovals: 1, requesterCannotApprove: false}` alone and it verifies.
+///
+/// Only strictly weaker signed values are refused; an equal or stricter one passes and the SIGNED
+/// value is then enforced. `allowed_aaguids` is not floored — express that as `require_hardware_key`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequirementFloor {
+    /// Integer ≥ 1. The signed `requiredApprovals` must be at least this.
+    pub required_approvals: u32,
+    /// When true, the signed requirement must also forbid the requester approving.
+    #[serde(default)]
+    pub requester_cannot_approve: bool,
+    /// When true, the signed requirement must also demand a hardware key.
+    #[serde(default)]
+    pub require_hardware_key: bool,
+}
+
+/// The reason stem every port uses for a signed requirement below the caller's floor.
+pub const WEAKER_REQUIREMENT_REASON: &str =
+    "signed requirement is weaker than the relying party's policy";
+
+/// DIV §5 step 3d. `None` is "no floor supplied" (legacy behaviour). A malformed floor fails CLOSED
+/// rather than silently meaning "no floor".
+fn check_requirement_floor(
+    signed: &ApprovalRequirement,
+    floor: Option<&RequirementFloor>,
+) -> Result<(), String> {
+    let Some(floor) = floor else { return Ok(()) };
+    if floor.required_approvals < 1 {
+        return Err(
+            "expected.requirement is malformed: required_approvals must be an integer of at least 1"
+                .to_string(),
+        );
+    }
+    if signed.required_approvals < floor.required_approvals {
+        return Err(format!(
+            "{WEAKER_REQUIREMENT_REASON}: it requires {} approval(s), the policy {} (DIV §5 step 3d)",
+            signed.required_approvals, floor.required_approvals
+        ));
+    }
+    if floor.requester_cannot_approve && !signed.requester_cannot_approve {
+        return Err(format!(
+            "{WEAKER_REQUIREMENT_REASON}: it does not forbid the requester approving (DIV §5 step 3d)"
+        ));
+    }
+    if floor.require_hardware_key && !signed.require_hardware_key {
+        return Err(format!(
+            "{WEAKER_REQUIREMENT_REASON}: it does not require a hardware key (DIV §5 step 3d)"
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -373,6 +445,12 @@ pub struct Expected {
     pub params: Value,
     /// REQUIRED. There is deliberately no default: a receipt must not vouch for its own signer.
     pub approvers: ApproverTrustAnchor,
+    /// STRONGLY RECOMMENDED: the minimum requirement YOUR approval rule demands (see
+    /// [`RequirementFloor`]). `None` keeps the legacy behaviour, which enforces only the quorum the
+    /// signers themselves stated. Under a delegation pass the ORDINARY rule — the delegated quorum must
+    /// already be at least as strict (DIV §5a.5). [`verify_delegation`] applies it to the sealing
+    /// requirement.
+    pub requirement: Option<RequirementFloor>,
 }
 
 impl ApproverTrustAnchor {
@@ -865,68 +943,71 @@ fn canonical_str_field(canonical: &str, key: &str) -> Option<String> {
         .and_then(|v| v.get(key).and_then(|x| x.as_str().map(String::from)))
 }
 
-/// Parse an RFC3339 UTC timestamp (`YYYY-MM-DDTHH:MM:SS[.fff]Z`) to unix seconds. UTC only (DIV
-/// mandates UTC `expiresAt`); returns None on any other shape. Zero external dependencies.
-/// Parse an RFC 3339 timestamp to a Unix second count.
+/// Parse a signed RFC 3339 timestamp to a Unix second count (fraction floored), or None.
 ///
-/// Accepts a `Z`/`z` suffix OR a numeric `±HH:MM` offset, and normalizes the latter to UTC. This
-/// used to require the string to END in `Z`, which made `2036-01-01T00:00:00+00:00` — perfectly
-/// valid RFC 3339 denoting UTC, and accepted by both `Date.parse` in the TS reference and
-/// `time.RFC3339` in the Go port — return None here alone.
+/// One grammar in every port (DIV §6.2): `YYYY-MM-DDTHH:MM:SS[.1-9 digits](Z|±HH:MM)` with an
+/// uppercase `T` and `Z`, a date that exists (30 February and a non-leap 29 February are refused),
+/// hours 00–23, minutes and seconds 00–59 (no leap second — Go and ECMAScript refuse `:60`), offset
+/// hours 00–23 and minutes 00–59. A numeric offset is accepted and normalized to UTC.
 ///
-/// That divergence was not cosmetic: the caller treated None as "skip the check", so a proof every
-/// other port would refuse for its window sailed through Rust. Both halves are fixed — this parser
-/// now agrees with its siblings, and the caller now fails closed on None rather than skipping.
+/// History: this once required a trailing `Z`, refusing `+00:00` that every sibling accepted, and
+/// its caller treated None as "skip the window check" — both fixed. It then accepted lowercase
+/// separators, a comma fraction, any number of fraction digits, `:60` and day 31 of any month,
+/// where the TS/Go/Java/Python ports disagreed with each other; all five now apply this grammar.
 fn parse_rfc3339_utc_secs(s: &str) -> Option<i64> {
     let b = s.as_bytes();
-    // Minimum: "YYYY-MM-DDTHH:MM:SSZ" = 20 chars.
-    if b.len() < 20 {
+    let digits = |from: usize, to: usize| -> Option<i64> {
+        let part = b.get(from..to)?;
+        if !part.iter().all(u8::is_ascii_digit) {
+            return None;
+        }
+        std::str::from_utf8(part).ok()?.parse().ok()
+    };
+    if b.len() < 20 || b[4] != b'-' || b[7] != b'-' || b[10] != b'T' || b[13] != b':' || b[16] != b':' {
         return None;
     }
-    if b[4] != b'-'
-        || b[7] != b'-'
-        || (b[10] != b'T' && b[10] != b't')
-        || b[13] != b':'
-        || b[16] != b':'
-    {
-        return None;
-    }
-    let year: i64 = s.get(0..4)?.parse().ok()?;
-    let month: i64 = s.get(5..7)?.parse().ok()?;
-    let day: i64 = s.get(8..10)?.parse().ok()?;
-    let hour: i64 = s.get(11..13)?.parse().ok()?;
-    let min: i64 = s.get(14..16)?.parse().ok()?;
-    let sec: i64 = s.get(17..19)?.parse().ok()?;
-    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || hour > 23 || min > 59 || sec > 60 {
+    let year = digits(0, 4)?;
+    let month = digits(5, 7)?;
+    let day = digits(8, 10)?;
+    let hour = digits(11, 13)?;
+    let min = digits(14, 16)?;
+    let sec = digits(17, 19)?;
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if day < 1 || day > days_in_month || hour > 23 || min > 59 || sec > 59 {
         return None;
     }
 
-    // Everything after the seconds: an optional fractional part (floored, per the note below), then
-    // the zone designator — `Z`/`z`, or a numeric offset which is subtracted to reach UTC.
-    let mut rest = s.get(19..)?;
-    if rest.starts_with('.') || rest.starts_with(',') {
-        // `.` and `,` are both legal decimal signs in ISO 8601; RFC 3339 uses `.`. The separator is
-        // one ASCII byte, so slicing at 1 is always a char boundary.
-        let digits = rest[1..].chars().take_while(|c| c.is_ascii_digit()).count();
-        if digits == 0 {
+    // An optional fraction of 1–9 digits (floored), then the zone: `Z`, or `±HH:MM` subtracted to
+    // reach UTC.
+    let mut rest = &b[19..];
+    if rest.first() == Some(&b'.') {
+        let n = rest[1..].iter().take_while(|c| c.is_ascii_digit()).count();
+        if n == 0 || n > 9 {
             return None;
         }
-        rest = rest.get(1 + digits..)?;
+        rest = &rest[1 + n..];
     }
-    let offset_secs: i64 = if rest == "Z" || rest == "z" {
+    let offset_secs: i64 = if rest == b"Z" {
         0
     } else {
-        let rb = rest.as_bytes();
-        if rb.len() != 6 || (rb[0] != b'+' && rb[0] != b'-') || rb[3] != b':' {
+        if rest.len() != 6 || (rest[0] != b'+' && rest[0] != b'-') || rest[3] != b':' {
             return None;
         }
-        let off_hour: i64 = rest.get(1..3)?.parse().ok()?;
-        let off_min: i64 = rest.get(4..6)?.parse().ok()?;
+        let at = b.len() - 6;
+        let off_hour = digits(at + 1, at + 3)?;
+        let off_min = digits(at + 4, at + 6)?;
         if off_hour > 23 || off_min > 59 {
             return None;
         }
         let magnitude = off_hour * 3600 + off_min * 60;
-        if rb[0] == b'-' {
+        if rest[0] == b'-' {
             -magnitude
         } else {
             magnitude
@@ -1143,8 +1224,9 @@ fn verify_approval_receipt_inner(
         }
     }
 
-    // The requirement is part of the SIGNED bytes, so reading it back from the payload is not
-    // circular: a forged value changes the string and fails the byte comparison below.
+    // The requirement is part of the SIGNED bytes, so a third party cannot alter it: a forged value
+    // changes the string and fails the byte comparison below. It does NOT bind the signers themselves
+    // — they authored it — which is why step 3d compares it against `expected.requirement`.
     let requirement: ApprovalRequirement =
         serde_json::from_str::<Value>(&receipt.canonical_payload)
             .ok()
@@ -1153,6 +1235,7 @@ fn verify_approval_receipt_inner(
             .ok_or("receipt payload is missing the signed approval requirement")?;
     check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
+    check_requirement_floor(&requirement, expected.requirement.as_ref())?;
     // DIV §5-step-3c. Before Local Payload Reconstruction, so an unsupported payload shape does not
     // surface as a params mismatch.
     check_evidence(&receipt.canonical_payload)?;
@@ -1204,8 +1287,9 @@ fn verify_approval_receipt_inner(
         // A hardware-key policy CANNOT be satisfied offline (DIV §5a.3 step 4). WebAuthn needs a secure
         // context and an RP ID an offline signing surface will not match, so an offline witness is
         // always a bare key. Accepting the proof anyway would silently downgrade the policy the approver
-        // attested to, so it is refused instead — fail closed, and say why.
-        if requirement.require_hardware_key {
+        // attested to, so it is refused instead — fail closed, and say why. A non-empty model allowlist
+        // is the same policy class: a bare key has no authenticator model at all.
+        if requirement.requires_hardware_credential() {
             return Err("the signed policy requires a hardware-backed WebAuthn credential, which cannot be produced offline — this action cannot be approved out of band (DIV §5a.3)".to_string());
         }
     }
@@ -1337,6 +1421,11 @@ fn verify_approval_receipt_inner(
         }
     }
 
+    if requirement.required_approvals > 1
+        && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
+    {
+        return Err("multi-approver quorum requires a DID-mode trust anchor (DIV §5 step 3b)".into());
+    }
     if requirement.requester_cannot_approve
         && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
     {
@@ -1358,6 +1447,7 @@ fn verify_approval_receipt_inner(
     // Count DISTINCT approvers whose signature verifies under a key we independently trust. Distinct
     // is load-bearing: without it, N copies of one approver's signature satisfy an N-of-M quorum.
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut counted_keys: std::collections::HashMap<Vec<u8>, String> = std::collections::HashMap::new();
     let mut failures: Vec<String> = Vec::new();
     for witness in &witnesses {
         let candidates = match expected.approvers.candidates_restricted(
@@ -1371,30 +1461,36 @@ fn verify_approval_receipt_inner(
                 continue;
             }
         };
-        let mut matched: Option<String> = None;
+        let mut matched: Option<(String, String)> = None;
         let mut last = "signature does not verify against any trusted approver key".to_string();
         for (key, identity) in candidates {
             match verify_witness(witness, &key, receipt, opts) {
                 Ok(()) => {
-                    matched = Some(identity);
+                    matched = Some((identity, key));
                     break;
                 }
                 Err(why) => last = why,
             }
         }
-        let Some(identity) = matched else {
+        let Some((identity, matched_key)) = matched else {
             failures.push(last);
             continue;
         };
         // A hardware-key policy is only partially checkable offline: a bare P-256 key carries no
         // attestation at all, so it can never satisfy the requirement, while a WebAuthn assertion is
         // accepted without proving the authenticator's model.
-        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+        if requirement.requires_hardware_credential() && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
             failures.push(format!(
                 "signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential",
                 witness.signer_did
             ));
             continue;
+        }
+        if requirement.require_hardware_key {
+            if let Some(why) = webauthn::backup_flags_problem(&witness) {
+                failures.push(why);
+                continue;
+            }
         }
         // Four-eyes, verified offline against the requester in the same signed payload.
         if requirement.requester_cannot_approve && witness.signer_did == requester.did {
@@ -1402,6 +1498,10 @@ fn verify_approval_receipt_inner(
                 "four-eyes: requester {} cannot approve their own action",
                 witness.signer_did
             ));
+            continue;
+        }
+        if let Some(why) = shared_key_problem(&mut counted_keys, &matched_key, &identity) {
+            failures.push(why);
             continue;
         }
         verified.insert(identity);
@@ -1556,9 +1656,13 @@ pub fn verify_platform_receipt(
         ));
     }
     let mut verified = std::collections::BTreeSet::new();
+    let mut counted_keys: std::collections::HashMap<Vec<u8>, String> = std::collections::HashMap::new();
     let mut failures = Vec::new();
     let mut effective = opts.clone();
     effective.expected_rp_id = Some(expected.rp_id.clone());
+    // User verification is UNCONDITIONAL on this plane (DIV §5c.3): the ordinary-receipt waiver
+    // `require_user_verification: Some(false)` is overridden here, never honoured.
+    effective.require_user_verification = Some(true);
     for witness in witnesses {
         if witness.sig_alg.as_deref() != Some("WEBAUTHN") {
             failures.push(format!(
@@ -1580,12 +1684,17 @@ pub fn verify_platform_receipt(
         let mut matched = None;
         for (key, identity) in candidates {
             if verify_witness(&witness, &key, &normalized, &effective).is_ok() {
-                matched = Some(identity);
+                matched = Some((identity, key));
                 break;
             }
         }
-        if let Some(identity) = matched {
-            verified.insert(identity);
+        if let Some((identity, matched_key)) = matched {
+            match shared_key_problem(&mut counted_keys, &matched_key, &identity) {
+                Some(why) => failures.push(why),
+                None => {
+                    verified.insert(identity);
+                }
+            }
         } else {
             failures.push("signature does not verify against any trusted subject key".into());
         }
@@ -1708,6 +1817,12 @@ pub fn verify_agent_authority(
     .map_err(|_| "authority payload is missing the signed approval requirement")?;
     check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
+    check_requirement_floor(&requirement, expected.requirement.as_ref())?;
+    if requirement.required_approvals > 1
+        && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
+    {
+        return Err("multi-approver quorum requires a DID-mode trust anchor (DIV §5 step 3b)".into());
+    }
     if requirement.requester_cannot_approve
         && matches!(&expected.approvers, ApproverTrustAnchor::PublicKeys(_))
     {
@@ -1749,6 +1864,7 @@ pub fn verify_agent_authority(
         ));
     }
     let mut verified = std::collections::BTreeSet::new();
+    let mut counted_keys: std::collections::HashMap<Vec<u8>, String> = std::collections::HashMap::new();
     let mut failures = Vec::new();
     for witness in witnesses {
         let candidates = match expected
@@ -1764,23 +1880,33 @@ pub fn verify_agent_authority(
         let mut matched = None;
         for (key, identity) in candidates {
             if verify_witness(&witness, &key, receipt, opts).is_ok() {
-                matched = Some(identity);
+                matched = Some((identity, key));
                 break;
             }
         }
-        let Some(identity) = matched else {
+        let Some((identity, matched_key)) = matched else {
             failures.push("signature does not verify against any trusted approver key".into());
             continue;
         };
-        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+        if requirement.requires_hardware_credential() && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
             failures.push(format!("signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential", witness.signer_did));
             continue;
+        }
+        if requirement.require_hardware_key {
+            if let Some(why) = webauthn::backup_flags_problem(&witness) {
+                failures.push(why);
+                continue;
+            }
         }
         if requirement.requester_cannot_approve && witness.signer_did == requester.did {
             failures.push(format!(
                 "four-eyes: requester {} cannot seal their own request",
                 witness.signer_did
             ));
+            continue;
+        }
+        if let Some(why) = shared_key_problem(&mut counted_keys, &matched_key, &identity) {
+            failures.push(why);
             continue;
         }
         verified.insert(identity);
@@ -1941,6 +2067,7 @@ pub fn verify_delegation(
         .ok_or("delegation payload is missing the signed approval requirement")?;
     check_quorum_minimum(&requirement)?;
     check_signer_class(&requirement)?;
+    check_requirement_floor(&requirement, expected.requirement.as_ref())?;
     if expected.target.is_empty() {
         return Err("expected.target is required — it must be YOUR target identifier, asserted independently of the delegation (DIV Target Isolation)".to_string());
     }
@@ -1991,6 +2118,7 @@ pub fn verify_delegation(
         ));
     }
     let mut verified: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut counted_keys: std::collections::HashMap<Vec<u8>, String> = std::collections::HashMap::new();
     let mut failures: Vec<String> = Vec::new();
     for witness in &witnesses {
         let candidates = match expected
@@ -2003,33 +2131,43 @@ pub fn verify_delegation(
                 continue;
             }
         };
-        let mut matched: Option<String> = None;
+        let mut matched: Option<(String, String)> = None;
         let mut last = "signature does not verify against any trusted approver key".to_string();
         for (key, identity) in candidates {
             match verify_witness(witness, &key, receipt, opts) {
                 Ok(()) => {
-                    matched = Some(identity);
+                    matched = Some((identity, key));
                     break;
                 }
                 Err(why) => last = why,
             }
         }
-        let Some(identity) = matched else {
+        let Some((identity, matched_key)) = matched else {
             failures.push(last);
             continue;
         };
-        if requirement.require_hardware_key && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
+        if requirement.requires_hardware_credential() && witness.sig_alg.as_deref() != Some("WEBAUTHN") {
             failures.push(format!(
                 "signer {} used a bare key, but the signed policy requires a hardware-backed WebAuthn credential",
                 witness.signer_did
             ));
             continue;
         }
+        if requirement.require_hardware_key {
+            if let Some(why) = webauthn::backup_flags_problem(&witness) {
+                failures.push(why);
+                continue;
+            }
+        }
         if requirement.requester_cannot_approve && witness.signer_did == requester.did {
             failures.push(format!(
                 "four-eyes: requester {} cannot delegate to themselves",
                 witness.signer_did
             ));
+            continue;
+        }
+        if let Some(why) = shared_key_problem(&mut counted_keys, &matched_key, &identity) {
+            failures.push(why);
             continue;
         }
         verified.insert(identity);
@@ -2059,6 +2197,29 @@ pub fn verify_delegation(
 }
 
 /// Normalize a receipt to a witness list: `signatures` if present, else the single-signature fields.
+/// One key, one person (DIV §4.4.6). An identity-associating anchor that maps the SAME key to two
+/// DIDs would otherwise let that key's holder count as two approvers, since quorum counts distinct
+/// identities. A key already counted for one identity cannot count for another. Keys compare by
+/// decoded bytes (padding and base64/base64url spellings of one encoding match; the same key in
+/// another encoding, COSE vs SPKI, is not detected). Records the key when it is free.
+fn shared_key_problem(
+    counted: &mut std::collections::HashMap<Vec<u8>, String>,
+    key: &str,
+    identity: &str,
+) -> Option<String> {
+    let fingerprint = webauthn::decode_base64_flexible(key).unwrap_or_else(|_| key.as_bytes().to_vec());
+    if let Some(owner) = counted.get(&fingerprint) {
+        if owner != identity {
+            return Some(format!(
+                "signer {identity} verified under a key already counted for {owner}; two approver identities sharing one key count once (DIV §4.4.6)"
+            ));
+        }
+        return None;
+    }
+    counted.insert(fingerprint, identity.to_string());
+    None
+}
+
 fn witnesses_of(receipt: &ApprovalReceipt) -> Vec<ApprovalWitness> {
     if let Some(sigs) = &receipt.signatures {
         if !sigs.is_empty() {
@@ -2089,13 +2250,9 @@ fn verify_witness(
         Some("WEBAUTHN") => {
             return webauthn::verify_webauthn_witness(witness, trusted_key, receipt, opts)
         }
-        Some("ES256") => {}
-        Some(algorithm) => {
-            return Err(format!(
-                "unsupported witness signature algorithm {algorithm:?}"
-            ))
-        }
-        None => return Err("witness is missing sigAlg".to_string()),
+        Some("AUTO_APPROVED") => return Err("unsupported witness signature algorithm".into()),
+        // DIV §4.4.2 requires ES256 compatibility for absent and unknown labels.
+        _ => {}
     }
     // ES256: the human's key signed the canonical payload bytes directly.
     let pub_bytes = STANDARD
@@ -2199,6 +2356,7 @@ mod tests {
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
+            requirement: None,
             target: "prod-db-cluster-01".to_string(),
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -2220,6 +2378,66 @@ mod tests {
             verify_approval_receipt(&receipt, &expected),
             Ok(vec![keys[0].clone()])
         );
+    }
+
+    /// DIV §5 step 3d (H1). The fixture's signed requirement is 1-of-1 with no four-eyes rule — the
+    /// shape a single approver who is also the requester can compose alone. Without a floor it
+    /// verifies (legacy behaviour, pinned); under the relying party's own stricter rule it is refused
+    /// before any signature is counted, and an equal floor still passes.
+    #[test]
+    fn test_requirement_floor_refuses_weaker_signed_requirement() {
+        let (receipt, mut expected) = signed_receipt();
+        assert!(verify_approval_receipt(&receipt, &expected).is_ok());
+        for floor in [
+            RequirementFloor {
+                required_approvals: 3,
+                requester_cannot_approve: true,
+                require_hardware_key: false,
+            },
+            RequirementFloor {
+                required_approvals: 1,
+                requester_cannot_approve: true,
+                require_hardware_key: false,
+            },
+            RequirementFloor {
+                required_approvals: 1,
+                requester_cannot_approve: false,
+                require_hardware_key: true,
+            },
+        ] {
+            expected.requirement = Some(floor);
+            let err = verify_approval_receipt(&receipt, &expected)
+                .expect_err("a weaker signed requirement must be refused");
+            assert!(err.contains(WEAKER_REQUIREMENT_REASON), "{floor:?}: {err}");
+        }
+        expected.requirement = Some(RequirementFloor {
+            required_approvals: 0,
+            ..Default::default()
+        });
+        let err = verify_approval_receipt(&receipt, &expected).expect_err("malformed floor");
+        assert!(err.contains("malformed"), "{err}");
+        expected.requirement = Some(RequirementFloor {
+            required_approvals: 1,
+            ..Default::default()
+        });
+        assert!(verify_approval_receipt(&receipt, &expected).is_ok());
+    }
+
+    /// The same floor binds a delegation's SEALING requirement to the ordinary rule (DIV §5a.5).
+    #[test]
+    fn test_requirement_floor_applies_to_delegation_seal() {
+        let (receipt, mut expected) = signed_delegation_receipt();
+        let opts = VerifyOptions {
+            as_of_unix_secs: parse_rfc3339_utc_secs("2026-01-01T12:00:00Z"),
+            ..Default::default()
+        };
+        assert!(verify_delegation(&receipt, &expected, &opts).is_ok());
+        expected.requirement = Some(RequirementFloor {
+            required_approvals: 2,
+            ..Default::default()
+        });
+        let err = verify_delegation(&receipt, &expected, &opts).expect_err("weaker seal");
+        assert!(err.contains(WEAKER_REQUIREMENT_REASON), "{err}");
     }
 
     #[test]
@@ -2307,6 +2525,7 @@ mod tests {
         // Approver signed environment=staging; relying party checks production.
         let (receipt, base) = signed_receipt();
         let expected = Expected {
+            requirement: None,
             target: "prod-db-cluster-01".to_string(),
             nonce: "c_8f91a2".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -2359,6 +2578,7 @@ mod tests {
             let expect_ok = entry["expectOk"].as_bool().unwrap_or(false);
 
             let expected = Expected {
+                requirement: None,
                 target: receipt.target.clone().unwrap_or_default(),
                 nonce: parse_nonce(&receipt.canonical_payload),
                 action_type: receipt.action_type.clone().unwrap_or_default(),
@@ -2622,6 +2842,7 @@ mod tests {
         let receipt: ApprovalReceipt =
             serde_json::from_value(doc["receipt"].clone()).expect("deserialize receipt");
         let expected = Expected {
+            requirement: None,
             target: doc["expected"]["target"].as_str().unwrap().to_string(),
             nonce: doc["expected"]["nonce"].as_str().unwrap().to_string(),
             action_type: doc["expected"]["actionType"].as_str().unwrap().to_string(),
@@ -2710,6 +2931,7 @@ mod tests {
     fn test_webauthn_rejects_tampered_params() {
         let v = load_webauthn_vector();
         let tampered = Expected {
+            requirement: None,
             target: v.expected.target.clone(),
             nonce: v.expected.nonce.clone(),
             action_type: v.expected.action_type.clone(),
@@ -2814,6 +3036,7 @@ mod tests {
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
+            requirement: None,
             target: "prod-db-cluster-01".to_string(),
             nonce: "c_exp".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -2872,6 +3095,39 @@ mod tests {
         assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00+99:00"), None);
         assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00"), None);
         assert_eq!(parse_rfc3339_utc_secs("2020-01-01T00:00:00."), None);
+
+        // One grammar in every port (DIV §6.2; 2026-09-27 review L15).
+        assert_eq!(
+            parse_rfc3339_utc_secs("2020-01-01T00:00:00.123456789Z"),
+            Some(1_577_836_800)
+        );
+        assert!(parse_rfc3339_utc_secs("2028-02-29T00:00:00Z").is_some());
+        for bad in [
+            "2020-01-01t00:00:00z",
+            "2020-01-01T00:00:00z",
+            "2020-02-30T00:00:00Z",
+            "2027-02-29T00:00:00Z",
+            "2020-04-31T00:00:00Z",
+            "2020-06-30T23:59:60Z",
+            "2020-01-01T00:00:00,5Z",
+            "2020-01-01T00:00:00.1234567891Z",
+            "+020-01-01T00:00:00Z",
+            "2020-+1-01T00:00:00Z",
+            "2020-01-01T00:00:00+2:00",
+        ] {
+            assert_eq!(parse_rfc3339_utc_secs(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_key_shared_by_two_dids_counts_once() {
+        let mut counted = std::collections::HashMap::new();
+        assert_eq!(shared_key_problem(&mut counted, "AAEC", "did:a"), None);
+        assert_eq!(shared_key_problem(&mut counted, "AAEC", "did:a"), None);
+        assert!(shared_key_problem(&mut counted, "AAEC", "did:b").is_some());
+        // Padded and unpadded spellings of the same bytes are one key.
+        assert_eq!(shared_key_problem(&mut counted, "AAE=", "did:c"), None);
+        assert!(shared_key_problem(&mut counted, "AAE", "did:d").is_some());
     }
 
     // ─── July 2026 audit regressions ────────────────────────────────────────
@@ -2918,6 +3174,7 @@ mod tests {
 
         // What the relying party is about to execute: something else entirely.
         let destructive = Expected {
+            requirement: None,
             target: "prod-db-cluster-01".to_string(),
             nonce: "c_nonce_1".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -2934,6 +3191,7 @@ mod tests {
         );
 
         let matching = Expected {
+            requirement: None,
             target: "sandbox-cluster".to_string(),
             nonce: "c_nonce_1".to_string(),
             action_type: "listFiles".to_string(),
@@ -3000,6 +3258,7 @@ mod tests {
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
+            requirement: None,
             target: "prod-db".to_string(),
             nonce: "off-window-test".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -3217,6 +3476,7 @@ mod tests {
     fn test_verify_fails_closed_on_non_portable_expected_params() {
         let (receipt, base) = signed_receipt();
         let expected = Expected {
+            requirement: None,
             target: base.target,
             nonce: base.nonce,
             action_type: base.action_type,
@@ -3321,6 +3581,7 @@ mod tests {
             verification_code: "1234".to_string(),
         };
         let expected = Expected {
+            requirement: None,
             target: "prod-db".to_string(),
             nonce: "del-witness-bound".to_string(),
             action_type: "deleteDatabase".to_string(),
@@ -3477,6 +3738,7 @@ mod tests {
     /// (exactly as the TS consumer's `expectationFor` does).
     fn vector_expectation(receipt: &ApprovalReceipt, approvers: ApproverTrustAnchor) -> Expected {
         Expected {
+            requirement: None,
             target: receipt.target.clone().unwrap_or_default(),
             nonce: parse_nonce(&receipt.canonical_payload),
             action_type: receipt.action_type.clone().unwrap_or_default(),
@@ -3695,6 +3957,7 @@ mod tests {
             verification_code: String::new(),
         };
         let expected = Expected {
+            requirement: None,
             target: "t".to_string(),
             nonce: "n".to_string(),
             action_type: "x".to_string(),

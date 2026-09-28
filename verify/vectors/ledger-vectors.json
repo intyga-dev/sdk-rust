@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-15T13:34:31.652Z",
+  "generated": "2026-09-26T15:50:20.911Z",
   "note": "Cross-language DEWP ledger vectors (docs/DEWP.md). Consumed by ALL FIVE ledger verifiers: TS (@intyga/verify), Go, Rust, Java, and Python. Regenerate ONLY on a deliberate format change.",
   "domainTags": {
     "leaf": "0x00",
@@ -300,6 +300,27 @@
       "expected": false
     },
     {
+      "name": "padding-forgery-revived-by-junk-suffixed-sibling",
+      "reason": "a lenient hex decoder stops at the first non-hex character, so a junk suffix leaves the decoded bytes (and the recomputed root) unchanged while defeating the string self-pairing comparison. Only DEWP §4.4's exact 64-character lowercase hex rule refuses it",
+      "leaf": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
+      "proof": [
+        {
+          "siblingHash": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2zz",
+          "siblingPosition": "LEFT"
+        },
+        {
+          "siblingHash": "ed692f01f7f6c46930d7ad8f9adad3f9f38b7379cf6a8d2f399a0ba1e914fe25",
+          "siblingPosition": "LEFT"
+        }
+      ],
+      "root": "9725a8cf4154eb2b9fc5722dc2e65536eb09eba37150859f97132466815de2ae",
+      "bounds": {
+        "index": 3,
+        "leafCount": 4
+      },
+      "expected": false
+    },
+    {
       "name": "uppercased-root-refused",
       "reason": "the path itself is honest, so this pins the ENCODING rule rather than the tree: digests are 64-character lowercase hex (DEWP §4.4), and a verifier that case-folds its inputs to be lenient — the obvious way to 'fix' this case — reopens the uppercased-sibling forgery above",
       "leaf": "b563a5e69628743929eddec0ccfeb0745c39577e12a72e84915edd6633cb97f2",
@@ -347,14 +368,17 @@
       "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53",
       "timestamp": "2026-07-24T23:59:00.000Z",
       "issuer": "https://transparency.example.org",
-      "algorithm": "ES256"
+      "algorithm": "ES256",
+      "seqStart": "0",
+      "seqEnd": "6",
+      "chainHash": "327c094f8b837cca9671fe8a3469e82024924421fe06e098541f524774c6cfc8"
     },
-    "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b"
+    "digestHex": "787550e9196dd77145147508e50e0ba4618fed4eb8d0ae9940203a0f2a05e95c"
   },
   "signedAnchor": {
     "signerKey": {
-      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEd//L/UH89aRhaegBz5HUTqxFb/BADH6HxBtR5Ut/gGJSf7Fh8Z5997gT4p76wSZWvVrWYRC9HJjXEd5WmisROw==",
-      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgnxuGELHLYmmfBXW/m8XTqI3mt1Yr4bejRHrLvS0siiChRANCAAR3/8v9Qfz1pGFp6AHPkdROrEVv8EAMfofEG1HlS3+AYlJ/sWHxnn33uBPinvrBJla9WtZhEL0cmNcR3laaKxE7"
+      "spkiB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIU4JBZFRpuf0xD84k7keRajyrKzCPFoeG8Nfc9DIsnykHJCRUml5g0ggxZXSa3sSPsTBoXDZdLAgACMeZJGetQ==",
+      "pkcs8B64": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg2W3P7cQp3On6xz+M9lkWnj+9UYkr0lP8NatsOHN6OqmhRANCAAQhTgkFkVGm5/TEPziTuR5FqPKsrMI8Wh4bw19z0MiyfKQckJFSaXmDSCDFldJrexI+xMGhcNl0sCAAIx5kkZ61"
     },
     "cases": [
       {
@@ -364,10 +388,13 @@
           "timestamp": "2026-07-24T23:59:00.000Z",
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
+          "seqStart": "0",
+          "seqEnd": "6",
+          "chainHash": "327c094f8b837cca9671fe8a3469e82024924421fe06e098541f524774c6cfc8",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEUCIQCM2yA+6y18IJhqNwb0/IqcX1kX2T4oBD9J77nylAwzdwIgSzHDpM3OKKyy4kggGJH6dL27GBVxJpc/ykwFgyjvKSI="
+          "signature": "MEUCIQDnpQ45owvnPibfiImZxfDDMuA25ZE/1KWSDuLawDY5JwIgXK5Y4AvWa4D0OmJLFAx4E2ugjO9iCQ1XusiPQ2sP6Jo="
         },
-        "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
+        "digestHex": "787550e9196dd77145147508e50e0ba4618fed4eb8d0ae9940203a0f2a05e95c",
         "expectOk": true
       },
       {
@@ -377,10 +404,13 @@
           "timestamp": "2026-07-24T23:59:00.000Z",
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
+          "seqStart": "0",
+          "seqEnd": "6",
+          "chainHash": "327c094f8b837cca9671fe8a3469e82024924421fe06e098541f524774c6cfc8",
           "keyId": "vector-anchor-key-1",
-          "signature": "DR5f6sLGAaN697jGIQEOcUZzSSce/it49ztWWob6ndNWYYwFF3Ch+ZComgH49IVDPnyC+x6egnrHoS4FxzrU/g=="
+          "signature": "5KBW7BAi1sg/o47hhvfUfu+BPPx3KvSE2kaT8PSTHiXmPXznUTI/0dQGwfZfZXXaElz4nwM3srWaP4FZsozPdw=="
         },
-        "digestHex": "4da6282473396aec2e8ffdcbc56ff2cc627e80e206262ed148c9ce6bba24aa7b",
+        "digestHex": "787550e9196dd77145147508e50e0ba4618fed4eb8d0ae9940203a0f2a05e95c",
         "expectOk": true
       },
       {
@@ -390,8 +420,41 @@
           "timestamp": "2026-07-24T23:59:00.000Z",
           "issuer": "https://transparency.example.org",
           "algorithm": "ES256",
+          "seqStart": "0",
+          "seqEnd": "6",
+          "chainHash": "327c094f8b837cca9671fe8a3469e82024924421fe06e098541f524774c6cfc8",
           "keyId": "vector-anchor-key-1",
-          "signature": "MEUCIQCM2yA+6y18IJhqNwb0/IqcX1kX2T4oBD9J77nylAwzdwIgSzHDpM3OKKyy4kggGJH6dL27GBVxJpc/ykwFgyjvKSI="
+          "signature": "MEUCIQDnpQ45owvnPibfiImZxfDDMuA25ZE/1KWSDuLawDY5JwIgXK5Y4AvWa4D0OmJLFAx4E2ugjO9iCQ1XusiPQ2sP6Jo="
+        },
+        "expectOk": false
+      },
+      {
+        "name": "same-signature-different-seq-range-fails",
+        "anchor": {
+          "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53",
+          "timestamp": "2026-07-24T23:59:00.000Z",
+          "issuer": "https://transparency.example.org",
+          "algorithm": "ES256",
+          "seqStart": "0",
+          "seqEnd": "7",
+          "chainHash": "327c094f8b837cca9671fe8a3469e82024924421fe06e098541f524774c6cfc8",
+          "keyId": "vector-anchor-key-1",
+          "signature": "MEUCIQDnpQ45owvnPibfiImZxfDDMuA25ZE/1KWSDuLawDY5JwIgXK5Y4AvWa4D0OmJLFAx4E2ugjO9iCQ1XusiPQ2sP6Jo="
+        },
+        "expectOk": false
+      },
+      {
+        "name": "same-signature-different-chain-hash-fails",
+        "anchor": {
+          "dailyRoot": "21d6a7e816839f55b1c146ec0ed6f0aa8693ef6aa09c42ace808f2c999711b53",
+          "timestamp": "2026-07-24T23:59:00.000Z",
+          "issuer": "https://transparency.example.org",
+          "algorithm": "ES256",
+          "seqStart": "0",
+          "seqEnd": "6",
+          "chainHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "keyId": "vector-anchor-key-1",
+          "signature": "MEUCIQDnpQ45owvnPibfiImZxfDDMuA25ZE/1KWSDuLawDY5JwIgXK5Y4AvWa4D0OmJLFAx4E2ugjO9iCQ1XusiPQ2sP6Jo="
         },
         "expectOk": false
       }

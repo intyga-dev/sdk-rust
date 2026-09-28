@@ -1,4 +1,4 @@
-use crate::ledger::{anchor_digest_bytes, SignedAnchor};
+use crate::ledger::{decode_public_key, SignedAnchor};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use p256::{
     ecdsa::{signature::Verifier, Signature, VerifyingKey},
@@ -36,20 +36,50 @@ pub fn parse_rekor_evidence(raw: Option<&str>) -> Option<RekorEvidence> {
     serde_json::from_slice(&b).ok()
 }
 pub fn rekor_payload_hash_for(a: &SignedAnchor) -> String {
-    format!(
-        "{:x}",
-        Sha256::digest(anchor_digest_bytes(
-            &a.daily_root,
-            &a.timestamp,
-            &a.issuer,
-            &a.algorithm
-        ))
-    )
+    format!("{:x}", Sha256::digest(a.digest()))
 }
+/// Verify the SET and the logged payload hash, without pinning who submitted the entry.
 pub fn verify_rekor_anchor(
     e: &RekorEvidence,
     a: &SignedAnchor,
     key_b64: &str,
+) -> RekorVerification {
+    verify_rekor_anchor_pinned(e, a, key_b64, &[])
+}
+
+/// The hashedrekord was submitted under one of the caller-pinned producer keys, and that key's ES256
+/// signature covers the anchor digest. Rekor logs a submission under ANY key, so without this anyone
+/// who can compute the digest (built from public fields) can have it logged. `publicKey.content` is
+/// base64 of the PEM text.
+fn submitted_by_pinned_key(v: &serde_json::Value, a: &SignedAnchor, pinned: &[String]) -> bool {
+    let sig = &v["spec"]["signature"];
+    let (Some(pk_b64), Some(sig_b64)) = (sig["publicKey"]["content"].as_str(), sig["content"].as_str()) else {
+        return false;
+    };
+    let Some(submitted) = STANDARD
+        .decode(pk_b64)
+        .ok()
+        .and_then(|pem| String::from_utf8(pem).ok())
+        .and_then(|pem| decode_public_key(&pem))
+    else {
+        return false;
+    };
+    if !pinned.iter().any(|k| decode_public_key(k).as_deref() == Some(submitted.as_slice())) {
+        return false;
+    }
+    let (Some(key), Ok(sig_bytes)) = (crate::parse_p256_public_key(&submitted), STANDARD.decode(sig_b64)) else {
+        return false;
+    };
+    crate::verify_p256_signature(&key, &a.digest(), &sig_bytes)
+}
+
+/// `verify_rekor_anchor`, additionally requiring (when `submitter_keys` is non-empty) that the
+/// entry was submitted under a pinned producer key with a valid signature over this anchor.
+pub fn verify_rekor_anchor_pinned(
+    e: &RekorEvidence,
+    a: &SignedAnchor,
+    key_b64: &str,
+    submitter_keys: &[String],
 ) -> RekorVerification {
     let fail = |s: &str| RekorVerification {
         ok: false,
@@ -87,6 +117,9 @@ pub fn verify_rekor_anchor(
     };
     if logged.to_ascii_lowercase() != rekor_payload_hash_for(a) {
         return fail("rekor entry attests a different payload");
+    }
+    if !submitter_keys.is_empty() && !submitted_by_pinned_key(&v, a, submitter_keys) {
+        return fail("rekor entry was not submitted under a pinned producer key with a valid signature over this anchor");
     }
     let payload=serde_json::json!({"body":body,"integratedTime":e.integrated_time,"logID":e.log_id,"logIndex":e.log_index}).to_string();
     let encoded = if key_b64.contains("BEGIN") {
