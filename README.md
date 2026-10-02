@@ -1,4 +1,4 @@
-# intyga-sdk — Intyga client for Rust
+# intyga-sdk — INTYGA client for Rust
 
 Gate any high-risk backend action behind a real human approval. The primitive is uniform: **request a challenge → a human approves with a passkey or security key → poll until resolved** — the same client works for scripts, pipelines, and AI agents.
 

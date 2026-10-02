@@ -5,6 +5,10 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
 
 ## [Unreleased]
 
+## [1.0.0]
+
+- Packaging: the standalone SDK source includes the embedded verifier's license, README and changelog.
+
 - **Breaking (I11):** `Client::new` and `Client::with_transport` now return `Result<Client, String>`
   and refuse a `gateway_url` that is not `https://`, except `http://` to a loopback host
   (`localhost`, `127.0.0.0/8`, `::1`) for local development.
@@ -35,7 +39,6 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
   `401` on it is still returned to the caller. A response without `expires_in` keeps the old
   cache-until-401 behaviour.
 
-## [1.0.0]
 
 Initial public release.
 
