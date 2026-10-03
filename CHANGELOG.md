@@ -5,6 +5,11 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
 
 ## [Unreleased]
 
+## [1.1.0]
+
+- No code change. The matched set moves together (`pnpm test:versions`); this release carries the
+  new `@intyga/sdk` CLI options and the `require-approval` Action update.
+
 ## [1.0.0]
 
 - Packaging: the standalone SDK source includes the embedded verifier's license, README and changelog.
