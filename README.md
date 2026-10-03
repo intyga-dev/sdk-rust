@@ -8,7 +8,7 @@ the signed session sequence and aggregate, and a budget across sessions (DIV §4
 
 This crate **bundles the offline verifier**, re-exporting it, so you can request an approval *and* independently verify the receipt without adding a second dependency.
 
-> Status: **not yet published** to crates.io. The standalone verifier also ships on its own as [`intyga-verify`](https://github.com/intyga-dev/verify-rust).
+> The standalone verifier also ships on its own as [`intyga-verify`](https://github.com/intyga-dev/verify-rust).
 
 ## Add it
 
