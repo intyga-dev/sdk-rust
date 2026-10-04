@@ -1,5 +1,7 @@
 # intyga-sdk — INTYGA client for Rust
 
+[![Release gated by INTYGA](https://www.intyga.com/badges/release-gated-by-intyga.svg)](https://www.intyga.com/use-cases/package-publishing)
+
 Gate any high-risk backend action behind a real human approval. The primitive is uniform: **request a challenge → a human approves with a passkey or security key → poll until resolved** — the same client works for scripts, pipelines, and AI agents.
 
 The example below uses a human or `SERVICE` key. `AI_AGENT` keys must include
