@@ -4,19 +4,59 @@
 //!
 //! Offline receipt verification lives in the standalone `intyga-verify` crate and is re-exported here so
 //! a relying party can re-verify what was signed without a second dependency.
+//!
+//! Offline approval (DIV §5a) — trust bundles, challenge and signature envelopes, signing as an
+//! approver, single-use redemption and reconciliation — lives in [`offline`], [`trust_bundle`],
+//! [`trust_anchor`] and [`approval_policy`], re-exported at the crate root. The client's fallback is
+//! [`Client::require_approval_with_offline`]. Contract: docs/OFFLINE-APPROVAL-SDK.md.
 
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+pub mod approval_policy;
+pub mod offline;
+mod support;
+pub mod trust_anchor;
+pub mod trust_bundle;
+
+pub use approval_policy::{
+    lost_approval_constraints, select_approval_rule, valid_approval_action_id,
+    validate_exact_approval_policy, ApprovalPolicyConflict,
+};
+pub use offline::{
+    assemble_offline_receipt, clear_pending_approval, create_offline_challenge,
+    decode_challenge_envelope, decode_signature_envelope, encode_signature_envelope,
+    iso_timestamp, parse_timestamp, pending_approvals, sign_challenge_envelope,
+    use_offline_approval, verification_code, ChallengeOptions, CollectSignatures,
+    DecodedChallenge, FileRedemptionStore, OfflineAction, OfflineApproval,
+    OfflineApprovalOptions, OfflineChallenge, OfflineSigningKey, PendingApproval,
+    RedemptionStore, SignOptions, SignedChallenge, WarnSink, CHALLENGE_ENVELOPE_PREFIX,
+    DEFAULT_OFFLINE_WINDOW_MINUTES, SIGNATURE_ENVELOPE_PREFIX,
+};
+pub use trust_anchor::{
+    parse_trust_anchor_file, trust_anchor_approvers, TrustAnchorFile, TrustAnchorPurpose,
+    WebAuthnExpectation, TRUST_ANCHOR_FILE_TYPE,
+};
+pub use trust_bundle::{
+    approver_anchor, check_trust_bundle_freshness, load_trust_bundle, requirement_for,
+    save_trust_bundle, verify_trust_bundle, BundleAnchorPurpose, BundleApprover, BundlePolicy,
+    ResolvedRequirement, TrustBundle, TrustBundleFiles, UnmatchedActionPolicy,
+    DIV_TRUST_BUNDLE_TYPE, MAX_TRUST_BUNDLE_AGE_DAYS,
+};
+
 // Re-export the offline verifier so SDK consumers can check receipts in-process.
 // ApproverTrustAnchor is part of this set deliberately: `Expected.approvers` is a required field of
 // that type, so without the re-export no SDK consumer could construct a verification call at all
-// without adding the verifier as a second direct dependency.
+// without adding the verifier as a second direct dependency. The offline-approval types travel with
+// it for the same reason: `create_offline_challenge` takes a RequesterIdentity, a delegation is a
+// VerifiedDelegation, and a receipt carries ApprovalWitness and ApprovalRequirement values.
 pub use intyga_verify::{
-    verify_approval_receipt, verify_approval_receipt_with_options, ApprovalReceipt,
-    ApproverTrustAnchor, Expected, VerifyOptions,
+    verify_approval_receipt, verify_approval_receipt_with_options, verify_delegation,
+    ApprovalReceipt, ApprovalRequirement, ApprovalWitness, ApproverTrustAnchor, Expected,
+    RequesterIdentity, RequirementFloor, VerifiedDelegation, VerifyOptions,
 };
 
 /// The lifecycle state of a challenge.
@@ -35,6 +75,15 @@ pub enum ApprovalStatus {
     Expired,
     #[serde(rename = "PENDING")]
     Pending,
+    /// An OFFLINE APPROVAL authorized this — real human signatures collected out of band at incident
+    /// time because the gateway could not be reached (DIV §5a). Only
+    /// [`Client::require_approval_with_offline`] returns it; the gateway never does.
+    ///
+    /// Deliberately NOT `Approved`. The usual guard is `if r.status != ApprovalStatus::Approved`, so
+    /// a distinct status means adding offline approval to a service cannot silently start permitting
+    /// things — handling it is a conscious change at the call site.
+    #[serde(rename = "OFFLINE_APPROVED")]
+    OfflineApproved,
 }
 
 /// Structured, WYSIWYS-bound details of an approval request.
@@ -110,8 +159,61 @@ pub struct HttpResponse {
     pub body: String,
 }
 
+/// Why a [`Transport`] could not return an [`HttpResponse`].
+///
+/// The variant is a security decision, not a detail: [`TransportError::NoResponse`] is the ONLY
+/// failure that tells [`Client::require_approval_with_offline`] the gateway could not be asked, and
+/// so the only one that may start an out-of-band approval (DIV §5a). Everything else — including any
+/// error built from a plain `String` — is treated as an answer, and never routes offline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransportError {
+    /// No HTTP response was received: DNS failure, connection refused or reset, TLS handshake
+    /// failure, a timeout before the status line. Never use it for a request that got a status back.
+    NoResponse(String),
+    /// A response arrived but its body could not be read: an I/O error mid-body, a body over the
+    /// transport's size limit, invalid UTF-8. Something answered; never "could not ask".
+    UnreadableBody(String),
+    /// Any other failure: an unparseable status line or header, a local configuration problem, or
+    /// an error this transport did not classify. Never "could not ask".
+    Other(String),
+}
+
+impl std::fmt::Display for TransportError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransportError::NoResponse(m)
+            | TransportError::UnreadableBody(m)
+            | TransportError::Other(m) => f.write_str(m),
+        }
+    }
+}
+
+impl std::error::Error for TransportError {}
+
+/// An unclassified error is [`TransportError::Other`], which fails CLOSED: a transport that maps its
+/// errors with `.map_err(|e| e.to_string().into())` can never route a refusal offline.
+impl From<String> for TransportError {
+    fn from(message: String) -> Self {
+        TransportError::Other(message)
+    }
+}
+
+impl From<&str> for TransportError {
+    fn from(message: &str) -> Self {
+        TransportError::Other(message.to_string())
+    }
+}
+
 /// Pluggable HTTP transport, so the client logic is testable without real sockets and users can bring
 /// their own async/proxy/instrumented client. `headers` is a list of (name, value) pairs.
+///
+/// **Every HTTP status — 3xx, 4xx and 5xx included — MUST come back as `Ok(HttpResponse)`.** The
+/// client decides what a status means: a 4xx is the gateway refusing, and it must reach the client
+/// as a status so it is never mistaken for an outage. Many HTTP libraries (ureq among them) return
+/// `Err` for a non-2xx by default; unwrap their status error into an `HttpResponse` as the
+/// built-in `UreqTransport` does. Return [`TransportError::NoResponse`] only when no HTTP response was
+/// received at all, [`TransportError::UnreadableBody`] when the body of a response could not be read,
+/// and [`TransportError::Other`] for anything else. Do not follow redirects.
 pub trait Transport {
     fn request(
         &self,
@@ -119,7 +221,7 @@ pub trait Transport {
         url: &str,
         headers: &[(&str, &str)],
         body: Option<&str>,
-    ) -> Result<HttpResponse, String>;
+    ) -> Result<HttpResponse, TransportError>;
 }
 
 /// Options for constructing a [`Client`].
@@ -152,6 +254,74 @@ impl Default for RequireApprovalOptions {
             authorize: AuthorizeOptions::default(),
             timeout: Duration::from_secs(120),
             interval: Duration::from_secs(2),
+        }
+    }
+}
+
+/// What [`Client::reconcile_offline_approvals`] reported.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReconcileReport {
+    /// Acknowledged by the gateway (2xx) and cleared locally.
+    pub reported: usize,
+    /// Not acknowledged — left buffered for the next attempt — or not readable as a record.
+    pub failed: usize,
+    /// One line per failure, prefixed with the nonce (or file name).
+    pub reasons: Vec<String>,
+}
+
+/// Why a gateway call failed — the distinction the offline fallback turns on.
+///
+/// Every public method still returns `Result<_, String>`; this only lets `require_approval_with_offline`
+/// tell "the gateway could not be asked" from "the gateway answered no". A 4xx (403 in particular,
+/// the gateway's own fail-closed "cannot resolve the approval requirement") is a verdict, and routing
+/// a verdict to an out-of-band ceremony would turn a policy denial into a different approval route.
+#[derive(Debug)]
+enum CallError {
+    /// No HTTP response was received ([`TransportError::NoResponse`]).
+    NoResponse(String),
+    /// The gateway answered with a non-2xx status. `message` is the full error text.
+    Status { status: u16, body: String, message: String },
+    /// A response whose body could not be read, or a 2xx whose body is not what the gateway sends —
+    /// a proxy page, a truncated response.
+    BadResponse(String),
+    /// Any other transport failure ([`TransportError::Other`]).
+    TransportOther(String),
+    /// Decided before anything was sent: invalid input or missing credentials.
+    Local(String),
+}
+
+impl From<TransportError> for CallError {
+    fn from(e: TransportError) -> Self {
+        match e {
+            TransportError::NoResponse(m) => CallError::NoResponse(m),
+            TransportError::UnreadableBody(m) => CallError::BadResponse(m),
+            TransportError::Other(m) => CallError::TransportOther(m),
+        }
+    }
+}
+
+impl CallError {
+    /// The gateway could not be ASKED: no HTTP response at all, or a 5xx, and nothing else. A 4xx is
+    /// a verdict; a local mistake asked nothing; an unreadable body came back from something that
+    /// answered; and an unclassified transport error may be a refusal a custom transport turned into
+    /// an `Err` — an offline ceremony would bind whatever was wrong in each case.
+    fn could_not_ask(&self) -> bool {
+        match self {
+            CallError::NoResponse(_) => true,
+            CallError::Status { status, .. } => *status >= 500,
+            CallError::BadResponse(_) | CallError::TransportOther(_) | CallError::Local(_) => false,
+        }
+    }
+}
+
+impl std::fmt::Display for CallError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CallError::NoResponse(m)
+            | CallError::BadResponse(m)
+            | CallError::TransportOther(m)
+            | CallError::Local(m) => f.write_str(m),
+            CallError::Status { message, .. } => f.write_str(message),
         }
     }
 }
@@ -205,6 +375,10 @@ impl<T: Transport> Client<T> {
     /// lifetime keeps working. An explicit [`ClientOptions::token`] is returned as-is: there is
     /// nothing to re-exchange it with.
     pub fn token(&mut self) -> Result<String, String> {
+        self.token_inner().map_err(|e| e.to_string())
+    }
+
+    fn token_inner(&mut self) -> Result<String, CallError> {
         if let Some(t) = &self.opts.token {
             return Ok(t.clone());
         }
@@ -221,27 +395,37 @@ impl<T: Transport> Client<T> {
         }
         let (id, secret) = match (&self.opts.client_id, &self.opts.client_secret) {
             (Some(id), Some(secret)) => (id, secret),
-            _ => return Err("provide token, or client_id + client_secret".to_string()),
+            _ => {
+                return Err(CallError::Local(
+                    "provide token, or client_id + client_secret".to_string(),
+                ))
+            }
         };
         let basic = base64_encode(format!("{}:{}", id, secret).as_bytes());
-        let res = self.transport.request(
-            "POST",
-            &format!("{}/oauth/token", self.opts.gateway_url),
-            &[("authorization", &format!("Basic {}", basic))],
-            None,
-        )?;
+        let res = self
+            .transport
+            .request(
+                "POST",
+                &format!("{}/oauth/token", self.opts.gateway_url),
+                &[("authorization", &format!("Basic {}", basic))],
+                None,
+            )
+            .map_err(CallError::from)?;
         if !(200..300).contains(&res.status) {
-            return Err(format!(
-                "token exchange failed: {} {}",
-                res.status, res.body
-            ));
+            return Err(CallError::Status {
+                status: res.status,
+                message: format!("token exchange failed: {} {}", res.status, res.body),
+                body: res.body,
+            });
         }
-        let data: Value =
-            serde_json::from_str(&res.body).map_err(|e| format!("bad token response: {}", e))?;
+        let data: Value = serde_json::from_str(&res.body)
+            .map_err(|e| CallError::BadResponse(format!("bad token response: {}", e)))?;
         let token = data
             .get("access_token")
             .and_then(Value::as_str)
-            .ok_or("token response missing access_token")?
+            .ok_or_else(|| {
+                CallError::BadResponse("token response missing access_token".to_string())
+            })?
             .to_string();
         // `expires_in` is seconds (RFC 6749 §5.1). Anything absent, non-numeric, non-positive or
         // too large to represent is "no expiry known" rather than an error: the token is still
@@ -272,10 +456,22 @@ impl<T: Transport> Client<T> {
         action_description: &str,
         opts: &AuthorizeOptions,
     ) -> Result<AuthorizeResponse, String> {
-        let target = opts.target.as_deref().map(str::trim).filter(|t| !t.is_empty()).ok_or_else(|| {
-            "intyga: AuthorizeOptions.target is required (DIV Target Isolation): name the relying \
-             party / execution environment this approval is bound to"
-                .to_string()
+        self.authorize_inner(action_description, opts)
+            .map_err(|e| e.to_string())
+    }
+
+    fn authorize_inner(
+        &mut self,
+        action_description: &str,
+        opts: &AuthorizeOptions,
+    ) -> Result<AuthorizeResponse, CallError> {
+        // `String.prototype.trim`, as every INTYGA client trims the target it sends.
+        let target = opts.target.as_deref().map(support::js_trim).filter(|t| !t.is_empty()).ok_or_else(|| {
+            CallError::Local(
+                "intyga: AuthorizeOptions.target is required (DIV Target Isolation): name the \
+                 relying party / execution environment this approval is bound to"
+                    .to_string(),
+            )
         })?;
         let mut body = json!({
             "target": target,
@@ -291,8 +487,9 @@ impl<T: Transport> Client<T> {
         if let Some(t) = opts.timeout_seconds {
             body["timeout"] = json!(t);
         }
-        let res = self.do_json("POST", "/authorize", Some(&body))?;
-        serde_json::from_str(&res).map_err(|e| format!("bad authorize response: {}", e))
+        let res = self.do_json_inner("POST", "/authorize", Some(&body))?;
+        serde_json::from_str(&res)
+            .map_err(|e| CallError::BadResponse(format!("bad authorize response: {}", e)))
     }
 
     /// Execution-time re-binding: after APPROVED, call this immediately before running the action so the
@@ -326,9 +523,14 @@ impl<T: Transport> Client<T> {
 
     /// Poll a challenge's current state (non-blocking).
     pub fn status(&mut self, nonce: &str) -> Result<ApprovalResult, String> {
+        self.status_inner(nonce).map_err(|e| e.to_string())
+    }
+
+    fn status_inner(&mut self, nonce: &str) -> Result<ApprovalResult, CallError> {
         let path = format!("/authorize/{}", urlencode(nonce));
-        let res = self.do_json("GET", &path, None)?;
-        serde_json::from_str(&res).map_err(|e| format!("bad status response: {}", e))
+        let res = self.do_json_inner("GET", &path, None)?;
+        serde_json::from_str(&res)
+            .map_err(|e| CallError::BadResponse(format!("bad status response: {}", e)))
     }
 
     /// The core zero-trust gate: call immediately before a high-risk action. It creates the challenge and
@@ -337,6 +539,39 @@ impl<T: Transport> Client<T> {
         &mut self,
         action_description: &str,
         opts: &RequireApprovalOptions,
+    ) -> Result<ApprovalResult, String> {
+        self.require_approval_inner(action_description, opts, None)
+    }
+
+    /// [`Client::require_approval`], plus the OFFLINE APPROVAL fallback (DIV §5a) for THIS call.
+    ///
+    /// The offline options are per call, never a client default: a process-wide default would make
+    /// every gated action in the service accept an out-of-band approval, which is the difference
+    /// between an emergency mechanism and a hole.
+    ///
+    /// It falls back ONLY when the gateway could not be asked — a connection failure, a timeout, a
+    /// 5xx, or five consecutive polling failures of those kinds — and runs [`use_offline_approval`]
+    /// with the same target, action type, params and description. A 4xx, `DENIED` or `EXPIRED` is
+    /// never routed offline: a human or the gateway's policy WAS reached and did not approve. A
+    /// polling streak containing any such refusal returns its first refusal, even when the later
+    /// errors were 5xx. Neither is a local error (a blank target, missing credentials) or an
+    /// unreadable 2xx body. A request carrying `agent_context` never falls back (an offline proof has
+    /// no session chain). A completed fallback returns [`ApprovalStatus::OfflineApproved`] with the
+    /// offline receipt and nonce — never `Approved`.
+    pub fn require_approval_with_offline(
+        &mut self,
+        action_description: &str,
+        opts: &RequireApprovalOptions,
+        offline: &OfflineApprovalOptions<'_>,
+    ) -> Result<ApprovalResult, String> {
+        self.require_approval_inner(action_description, opts, Some(offline))
+    }
+
+    fn require_approval_inner(
+        &mut self,
+        action_description: &str,
+        opts: &RequireApprovalOptions,
+        offline: Option<&OfflineApprovalOptions<'_>>,
     ) -> Result<ApprovalResult, String> {
         let timeout = if opts.timeout.is_zero() {
             Duration::from_secs(120)
@@ -358,7 +593,21 @@ impl<T: Transport> Client<T> {
             ..opts.authorize.clone()
         };
         let deadline = Instant::now().checked_add(timeout).ok_or("approval timeout is too large")?;
-        let auth_res = self.authorize(action_description, &authorize)?;
+        let auth_res = match self.authorize_inner(action_description, &authorize) {
+            Ok(r) => r,
+            // Could not even raise the challenge — the clearest "gateway is unreachable" signal
+            // there is, unless the gateway in fact answered, which `offline_fallback` refuses.
+            Err(e) => {
+                return offline_fallback(
+                    e.to_string(),
+                    format!("could not reach Intyga to request approval: {e}"),
+                    &e,
+                    action_description,
+                    &opts.authorize,
+                    offline,
+                )
+            }
+        };
         let nonce = auth_res.nonce;
 
         let expired = || ApprovalResult {
@@ -366,13 +615,19 @@ impl<T: Transport> Client<T> {
             nonce: Some(nonce.clone()), agent_context: auth_res.agent_context.clone(),
         };
         let mut consecutive_errors = 0u32;
+        // The first error in the current streak that was NOT "could not ask" (a 4xx, an unreadable
+        // 2xx body). If the streak reaches the limit, that error is returned and nothing routes
+        // offline, whatever the later errors were: a gateway that answered 404 once and then went
+        // quiet was reached, and its answer was not an outage. A successful poll clears it.
+        let mut streak_refusal: Option<String> = None;
         loop {
             if Instant::now() >= deadline { return Ok(expired()); }
             // A human approval can outlast a transient 502 — don't discard the whole wait over one bad poll.
-            match self.status(&nonce) {
+            match self.status_inner(&nonce) {
                 Ok(mut r) => {
                     if Instant::now() >= deadline { return Ok(expired()); }
                     consecutive_errors = 0;
+                    streak_refusal = None;
                     if r.status != ApprovalStatus::Pending {
                         r.nonce = Some(nonce);
                         r.agent_context = auth_res.agent_context;
@@ -381,11 +636,28 @@ impl<T: Transport> Client<T> {
                 }
                 Err(e) => {
                     consecutive_errors += 1;
+                    if !e.could_not_ask() && streak_refusal.is_none() {
+                        streak_refusal = Some(e.to_string());
+                    }
                     if consecutive_errors >= MAX_POLL_ERRORS {
-                        return Err(format!(
+                        if let Some(refusal) = streak_refusal {
+                            return Err(refusal);
+                        }
+                        // Every error in the streak was "could not ask": the gateway went away
+                        // mid-wait, and the same fallback applies as when the challenge could not
+                        // be raised at all.
+                        let cause = format!(
                             "polling failed after {} consecutive errors: {}",
                             MAX_POLL_ERRORS, e
-                        ));
+                        );
+                        return offline_fallback(
+                            cause.clone(),
+                            cause,
+                            &e,
+                            action_description,
+                            &opts.authorize,
+                            offline,
+                        );
                     }
                 }
             }
@@ -405,11 +677,73 @@ impl<T: Transport> Client<T> {
     /// Public witness lookup: has this document hash been signed, by whom, and when?
     pub fn verify(&mut self, document_hash: &str) -> Result<VerifyResult, String> {
         let url = format!("{}/verify/{}", self.opts.gateway_url, urlencode(document_hash));
-        let res = self.transport.request("GET", &url, &[], None)?;
+        let res = self
+            .transport
+            .request("GET", &url, &[], None)
+            .map_err(|e| e.to_string())?;
         if !(200..300).contains(&res.status) {
             return Err(format!("verify failed: {}", res.status));
         }
         serde_json::from_str(&res.body).map_err(|e| format!("bad verify response: {}", e))
+    }
+
+    /// Report offline approvals that happened while the gateway was unreachable (DIV §5a.7):
+    /// `POST /offline-approval/reconcile` once per buffered record, with this client's ordinary
+    /// authentication and the body `{nonce, usedAt, target, actionType, display, receipt,
+    /// delegationNonce}` (`delegationNonce` omitted when no delegation was used).
+    ///
+    /// Call it on reconnect — a scheduled retry, a health-check hook, service start. Until an approval
+    /// is reported it exists only on this relying party's disk, and an unreported approval is
+    /// indistinguishable from an unauthorized action. A record is cleared ONLY on a 2xx; anything
+    /// else leaves it queued for the next attempt. A file in the buffer that is not a readable record
+    /// is counted as failed, so it is never silently ignored. `buffer_dir` defaults to
+    /// `<bundle_dir>/.pending`.
+    pub fn reconcile_offline_approvals(
+        &mut self,
+        bundle_dir: impl AsRef<Path>,
+        buffer_dir: Option<&Path>,
+    ) -> Result<ReconcileReport, String> {
+        // Resolve credentials up front, so a misconfigured client is an error rather than one
+        // "failed" report per buffered approval.
+        self.token()?;
+        let (records, unreadable) = offline::scan_pending(bundle_dir.as_ref(), buffer_dir);
+        let mut report = ReconcileReport::default();
+        for name in unreadable {
+            report.failed += 1;
+            report
+                .reasons
+                .push(format!("{name}: unreadable pending record — report it by hand"));
+        }
+        for (file, record) in records {
+            // The full receipt travels with the report so the gateway can RE-VERIFY the approval
+            // rather than take the reporter's word for it — we are reporting on ourselves.
+            let body = match serde_json::to_value(&record) {
+                Ok(body) => body,
+                Err(e) => {
+                    report.failed += 1;
+                    report.reasons.push(format!("{}: {e}", record.nonce));
+                    continue;
+                }
+            };
+            match self.do_json_inner("POST", "/offline-approval/reconcile", Some(&body)) {
+                Ok(_) => {
+                    // The file just reported, not a path rebuilt from the nonce it contains.
+                    let _ = std::fs::remove_file(&file);
+                    report.reported += 1;
+                }
+                Err(CallError::Status { status, body, .. }) => {
+                    report.failed += 1;
+                    report
+                        .reasons
+                        .push(format!("{}: {status} {body}", record.nonce));
+                }
+                Err(e) => {
+                    report.failed += 1;
+                    report.reasons.push(format!("{}: {e}", record.nonce));
+                }
+            }
+        }
+        Ok(report)
     }
 
     /// Perform an authenticated JSON request, returning the response body on 2xx.
@@ -424,11 +758,21 @@ impl<T: Transport> Client<T> {
         path: &str,
         body: Option<&Value>,
     ) -> Result<String, String> {
+        self.do_json_inner(method, path, body)
+            .map_err(|e| e.to_string())
+    }
+
+    fn do_json_inner(
+        &mut self,
+        method: &str,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<String, CallError> {
         let url = format!("{}{}", self.opts.gateway_url, path);
         let body_str = body.map(|b| b.to_string());
         let mut retried = false;
         loop {
-            let token = self.token()?;
+            let token = self.token_inner()?;
             let auth = format!("Bearer {}", token);
             let mut headers: Vec<(&str, &str)> = vec![("authorization", &auth)];
             if body_str.is_some() {
@@ -436,20 +780,69 @@ impl<T: Transport> Client<T> {
             }
             let res = self
                 .transport
-                .request(method, &url, &headers, body_str.as_deref())?;
+                .request(method, &url, &headers, body_str.as_deref())
+                .map_err(CallError::from)?;
             if res.status == 401 && self.opts.token.is_none() && !retried {
                 self.cached = None;
                 retried = true;
                 continue;
             }
             if !(200..300).contains(&res.status) {
-                return Err(format!(
-                    "{} {} failed: {} {}",
-                    method, path, res.status, res.body
-                ));
+                return Err(CallError::Status {
+                    status: res.status,
+                    message: format!("{} {} failed: {} {}", method, path, res.status, res.body),
+                    body: res.body,
+                });
             }
             return Ok(res.body);
         }
+    }
+}
+
+/// The DIV §5a fallback decision for [`Client::require_approval_with_offline`].
+///
+/// `refusal` is what the call returns when it does not fall back (exactly what
+/// [`Client::require_approval`] returns); `cause` prefixes the error when the offline approval
+/// itself does not complete.
+fn offline_fallback(
+    refusal: String,
+    cause: String,
+    err: &CallError,
+    action_description: &str,
+    authorize: &AuthorizeOptions,
+    offline: Option<&OfflineApprovalOptions<'_>>,
+) -> Result<ApprovalResult, String> {
+    let Some(offline) = offline else {
+        return Err(refusal);
+    };
+    // DIV §5a exists for the case where we could not ASK. A 4xx means the gateway was reached and
+    // refused; treating a refusal as unreachability turns a policy denial into a different approval
+    // route, which is worse than having no gate at all (DIV §3.4).
+    if !err.could_not_ask() {
+        return Err(refusal);
+    }
+    if authorize.agent_context.is_some() {
+        return Err(
+            "agent continuity requests cannot fall back to an unchained offline proof".to_string(),
+        );
+    }
+    let action = OfflineAction {
+        target: authorize.target.clone().unwrap_or_default(),
+        action_type: authorize.action_type.clone().unwrap_or_default(),
+        display: action_description.to_string(),
+        params: authorize.params.clone().unwrap_or_else(|| json!({})),
+    };
+    match use_offline_approval(&action, offline) {
+        Ok(approval) => Ok(ApprovalResult {
+            status: ApprovalStatus::OfflineApproved,
+            agent_context: None,
+            signature_hash: None,
+            receipt: Some(approval.receipt),
+            nonce: Some(approval.nonce),
+        }),
+        Err(reason) => Err(format!(
+            "{cause} — and the offline approval did not complete: {reason}"
+        )),
     }
 }
 
@@ -510,6 +903,10 @@ fn is_loopback_host(host_port: &str) -> bool {
 #[cfg(feature = "ureq-transport")]
 pub struct UreqTransport;
 
+/// The largest response body the built-in transport reads — ureq's own `into_string` cap (10 MB).
+#[cfg(feature = "ureq-transport")]
+const MAX_RESPONSE_BODY_BYTES: u64 = 10 * 1024 * 1024;
+
 #[cfg(feature = "ureq-transport")]
 impl Transport for UreqTransport {
     fn request(
@@ -518,7 +915,7 @@ impl Transport for UreqTransport {
         url: &str,
         headers: &[(&str, &str)],
         body: Option<&str>,
-    ) -> Result<HttpResponse, String> {
+    ) -> Result<HttpResponse, TransportError> {
         let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).redirects(0).build();
         let mut req = agent.request(method, url);
         for (k, v) in headers {
@@ -528,20 +925,49 @@ impl Transport for UreqTransport {
             Some(b) => req.send_string(b),
             None => req.call(),
         };
-        match result {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.into_string().map_err(|e| e.to_string())?;
-                Ok(HttpResponse { status, body })
-            }
-            // ureq returns Err for non-2xx; surface the status and body rather than treating it as a
-            // transport failure, so callers see the gateway's error.
-            Err(ureq::Error::Status(status, resp)) => {
-                let body = resp.into_string().unwrap_or_default();
-                Ok(HttpResponse { status, body })
-            }
-            Err(e) => Err(e.to_string()),
+        let resp = match result {
+            Ok(resp) => resp,
+            // ureq returns Err for a non-2xx. That is a STATUS, and it goes back as one: the client
+            // must see a 4xx as the gateway refusing, never as the gateway being unreachable.
+            Err(ureq::Error::Status(_, resp)) => resp,
+            Err(ureq::Error::Transport(t)) => return Err(classify_ureq_transport_error(&t)),
+        };
+        let status = resp.status();
+        // Read separately, and strictly: a body that cannot be read (an I/O error mid-body, over the
+        // size cap, invalid UTF-8) came from something that answered, so it is never "could not
+        // ask". Not `into_string`, which replaces invalid UTF-8 rather than refusing it.
+        let unreadable = |why: String| {
+            TransportError::UnreadableBody(format!(
+                "HTTP {status}: could not read the response body: {why}"
+            ))
+        };
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(
+            &mut std::io::Read::take(resp.into_reader(), MAX_RESPONSE_BODY_BYTES + 1),
+            &mut bytes,
+        )
+        .map_err(|e| unreadable(e.to_string()))?;
+        if bytes.len() as u64 > MAX_RESPONSE_BODY_BYTES {
+            return Err(unreadable(format!(
+                "it is larger than {MAX_RESPONSE_BODY_BYTES} bytes"
+            )));
         }
+        let body = String::from_utf8(bytes).map_err(|e| unreadable(e.to_string()))?;
+        Ok(HttpResponse { status, body })
+    }
+}
+
+/// Only failures that leave no HTTP response behind are [`TransportError::NoResponse`]. A garbled
+/// status line or header means something answered; a bad URL or proxy setting is local.
+#[cfg(feature = "ureq-transport")]
+fn classify_ureq_transport_error(t: &ureq::Transport) -> TransportError {
+    use ureq::ErrorKind;
+    let message = t.to_string();
+    match t.kind() {
+        ErrorKind::Dns | ErrorKind::ConnectionFailed | ErrorKind::ProxyConnect | ErrorKind::Io => {
+            TransportError::NoResponse(message)
+        }
+        _ => TransportError::Other(message),
     }
 }
 
@@ -656,7 +1082,7 @@ mod tests {
             url: &str,
             headers: &[(&str, &str)],
             body: Option<&str>,
-        ) -> Result<HttpResponse, String> {
+        ) -> Result<HttpResponse, TransportError> {
             self.seen_bodies.borrow_mut().push(body.map(str::to_string));
             for (name, value) in headers {
                 if *name == "authorization" {
@@ -674,7 +1100,7 @@ mod tests {
                     return Ok(HttpResponse { status, body });
                 }
             }
-            Err(format!("no mock route for {} {}", method, url))
+            Err(format!("no mock route for {} {}", method, url).into())
         }
     }
 
@@ -719,6 +1145,27 @@ mod tests {
         assert_eq!(explicit["actionType"], "transfer");
     }
 
+    #[test]
+    fn authorize_trims_the_target_as_javascript_does() {
+        let transport = MockTransport::new().on(
+            "POST",
+            "/authorize",
+            vec![(200, r#"{"nonce":"n_1","status":"PENDING"}"#)],
+        );
+        let mut client = Client::with_transport(
+            ClientOptions { gateway_url: "https://gw.example".into(), token: Some("t".into()), ..Default::default() },
+            transport,
+        ).unwrap();
+        let with = |target: &str| AuthorizeOptions { target: Some(target.into()), ..Default::default() };
+        client.authorize("wire", &with("\u{feff} prod\u{3000}")).unwrap();
+        // A BOM and spaces alone are blank to every INTYGA client.
+        assert!(client.authorize("wire", &with("\u{feff} \u{2028}")).is_err());
+        let bodies = client.transport.seen_bodies.borrow();
+        assert_eq!(bodies.len(), 1);
+        let sent: Value = serde_json::from_str(bodies[0].as_ref().unwrap()).unwrap();
+        assert_eq!(sent["target"], "prod");
+    }
+
     fn fast_opts(a: AuthorizeOptions) -> RequireApprovalOptions {
         RequireApprovalOptions {
             authorize: a,
@@ -737,7 +1184,7 @@ mod tests {
             let (mut stream, _) = listener.accept().unwrap();
             stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
             let mut buf = [0u8; 4096];
-            stream.read(&mut buf).unwrap();
+            let _ = stream.read(&mut buf).unwrap();
             stream.write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /sink\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
         });
         let result = UreqTransport.request("POST", &format!("http://{addr}/oauth/token"),
@@ -746,11 +1193,85 @@ mod tests {
         server.join().unwrap();
     }
 
+    /// Serve one canned raw HTTP response on a loopback port and return its address.
+    #[cfg(feature = "ureq-transport")]
+    fn serve_once(response: &'static [u8]) -> (std::net::SocketAddr, std::thread::JoinHandle<()>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf).unwrap();
+            stream.write_all(response).unwrap();
+        });
+        (addr, server)
+    }
+
+    // The fallback turns on these three distinctions, so the built-in transport is pinned to them:
+    // a refusal is a STATUS, a body that cannot be read is not an outage, and only a request with no
+    // response at all is.
+    #[test]
+    #[cfg(feature = "ureq-transport")]
+    fn default_transport_classifies_what_it_could_not_return() {
+        let (addr, server) = serve_once(
+            b"HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\nConnection: close\r\n\r\ndenied",
+        );
+        let refused = UreqTransport.request("GET", &format!("http://{addr}/authorize/n"), &[], None);
+        let refused = refused.expect("a 4xx must come back as Ok(HttpResponse)");
+        assert_eq!((refused.status, refused.body.as_str()), (403, "denied"));
+        server.join().unwrap();
+
+        let (addr, server) = serve_once(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\n\xff\xfe\xfd\xfc",
+        );
+        let unreadable = UreqTransport.request("GET", &format!("http://{addr}/authorize/n"), &[], None);
+        assert!(
+            matches!(unreadable, Err(TransportError::UnreadableBody(_))),
+            "{:?}",
+            unreadable.map(|r| r.status)
+        );
+        server.join().unwrap();
+
+        // The connection closes four bytes into a ten-byte body: an I/O error mid-body.
+        let (addr, server) = serve_once(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\nConnection: close\r\n\r\n{\"ok\"",
+        );
+        let cut = UreqTransport.request("GET", &format!("http://{addr}/authorize/n"), &[], None);
+        assert!(
+            matches!(cut, Err(TransportError::UnreadableBody(_))),
+            "{:?}",
+            cut.map(|r| r.status)
+        );
+        server.join().unwrap();
+
+        // A port nothing listens on: the connection is refused, so no response was received.
+        let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+        let down = UreqTransport.request("GET", &format!("http://{closed}/authorize/n"), &[], None);
+        assert!(
+            matches!(down, Err(TransportError::NoResponse(_))),
+            "{:?}",
+            down.map(|r| r.status)
+        );
+    }
+
+    #[test]
+    fn an_unclassified_transport_error_fails_closed() {
+        assert_eq!(
+            TransportError::from("403 Forbidden".to_string()),
+            TransportError::Other("403 Forbidden".into())
+        );
+        assert!(!CallError::from(TransportError::Other("x".into())).could_not_ask());
+        assert!(!CallError::from(TransportError::UnreadableBody("x".into())).could_not_ask());
+        assert!(CallError::from(TransportError::NoResponse("x".into())).could_not_ask());
+    }
+
     #[test]
     fn construction_refuses_a_non_https_gateway() {
         struct Never;
         impl Transport for Never {
-            fn request(&self, _: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, String> {
+            fn request(&self, _: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, TransportError> {
                 panic!("no request may be sent")
             }
         }
@@ -792,7 +1313,7 @@ mod tests {
     fn late_approval_is_expired() {
         struct Slow;
         impl Transport for Slow {
-            fn request(&self, method: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, String> {
+            fn request(&self, method: &str, _: &str, _: &[(&str, &str)], _: Option<&str>) -> Result<HttpResponse, TransportError> {
                 if method == "POST" {
                     return Ok(HttpResponse { status: 200, body: r#"{"nonce":"late","status":"PENDING"}"#.into() });
                 }

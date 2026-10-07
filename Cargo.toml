@@ -1,6 +1,6 @@
 [package]
 name = "intyga-sdk"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "Rust client for INTYGA: request a challenge, a human approves with a passkey or security key, poll until resolved"
 license = "Apache-2.0"
@@ -21,5 +21,14 @@ serde_json = "1.0"
 # Offline receipt verification is re-exported so callers can verify what was signed without a second
 # crate. `version` + `path` together: local builds use the sibling directory, while `cargo publish`
 # (which forbids bare path dependencies) resolves the published intyga-verify at this version.
-intyga-verify = { version = "1.1.0", path = "verify" }
+intyga-verify = { version = "1.2.0", path = "verify" }
 ureq = { version = "2", optional = true }
+# Offline approval (DIV §5a, src/offline.rs). Every one of these is already in the dependency graph
+# through intyga-verify at the same version, so none adds a crate: P-256 signing as an approver,
+# SHA-256 for verification codes, base64 envelopes, RS256 for the gateway-signed trust bundle, and
+# OS randomness for locally generated challenge nonces. Keep the versions in step with verify-rust.
+p256 = { version = "0.13", features = ["ecdsa", "pem"] }
+sha2 = "0.10"
+base64 = "0.21"
+rsa = { version = "0.9", features = ["sha2"] }
+getrandom = "0.2"

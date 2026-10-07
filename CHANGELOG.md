@@ -5,6 +5,62 @@ All notable changes to `intyga-sdk` (Rust) are documented here. The format follo
 
 ## [Unreleased]
 
+## [1.2.0]
+
+- **Offline approval (DIV §5a).** The SDK half of offline approval, matching the TypeScript
+  reference and passing every section of the shared `offline-approval-vectors.json`
+  (docs/OFFLINE-APPROVAL-SDK.md):
+  - Trust bundles: `verify_trust_bundle` (RS256 compact JWS against a pinned JWK, `alg` checked,
+    never chosen), `check_trust_bundle_freshness` (`expiresAt` plus the 30-day age cap),
+    `save_trust_bundle` / `load_trust_bundle` (`trust-bundle.jws` + `gateway-key.jwk.json`, private
+    files), `approver_anchor(bundle, limit_to_dids, purpose)` with offline signing keys admitted only
+    for `BundleAnchorPurpose::OfflineIntent`, and `requirement_for` with the exact-ID (v3) policy
+    selection of `approval_policy` (`validate_exact_approval_policy`, `lost_approval_constraints`,
+    `select_approval_rule`).
+  - Trust-anchor files: `parse_trust_anchor_file(text, purpose)` and `trust_anchor_approvers`; an
+    online anchor is refused where offline approvals are verified, and the reverse.
+  - Ceremony: `create_offline_challenge`, `decode_challenge_envelope` (`DIV1:`),
+    `encode_signature_envelope` / `decode_signature_envelope` (`SIG1:`), `sign_challenge_envelope`
+    (PKCS#8 PEM or DER, SEC1 PEM — including `openssl ecparam -genkey` output with its leading
+    `EC PARAMETERS` block — or a `p256` signing key), `assemble_offline_receipt`.
+  - Running it: `use_offline_approval` with `FileRedemptionStore` (exclusive-create single use),
+    `pending_approvals` / `clear_pending_approval` over `<bundle_dir>/.pending`.
+  - Client: `Client::require_approval_with_offline` falls back only when the gateway could not be
+    asked (transport failure, 5xx, five such polling failures in a row) — never on a 4xx, `DENIED`,
+    `EXPIRED`, a local error, an unreadable 2xx body or an agent-continuity request — and reports
+    the new `ApprovalStatus::OfflineApproved`, never `Approved`. `Client::reconcile_offline_approvals`
+    posts each buffered record to `/offline-approval/reconcile` and clears it only on a 2xx; an
+    unreadable record is counted as failed, kept and named.
+  - Envelopes decode strict base64url only and must hold a JSON object; a `DIV1:` payload's fields
+    must have the contract's shapes (string fields, a non-blank `target`, object `params` and
+    `requirement`, a `requester` with a string `did`); a supplied empty nonce or a blank target is
+    refused, never replaced; delegation files are tried in file-name order; a failed
+    `collect_signatures` buffers and redeems nothing.
+  - Pasted envelopes, the bundle file and the target are trimmed exactly as JavaScript's
+    `String.prototype.trim()` does — a leading BOM is removed, U+0085 is not — so a paste that decodes
+    in one SDK decodes in all of them. `Client::authorize` trims the target it sends the same way.
+- `require_approval` (with or without offline options): when five consecutive polling failures
+  include a refusal (a 4xx, or an unreadable 2xx body), the first such refusal is returned rather
+  than "polling failed after 5 consecutive errors", whatever the later errors were.
+- **Breaking:** `Transport::request` now returns `Result<HttpResponse, TransportError>` instead of
+  `Result<HttpResponse, String>`. `TransportError::NoResponse` (no HTTP response received) is the only
+  failure the offline fallback treats as "could not ask"; `UnreadableBody` and `Other` never fall back,
+  and `From<String>` produces `Other`, so a transport that turns a 4xx into an `Err` cannot route a
+  refusal offline. Every HTTP status, 3xx/4xx/5xx included, must be returned as `Ok(HttpResponse)`.
+  To migrate, change the return type and map connection-level failures to `NoResponse`
+  (`.map_err(|e| e.to_string().into())` compiles, but never falls back).
+- The built-in `UreqTransport` returns a non-2xx as a status (as before), classifies DNS, connection,
+  proxy-connect and I/O failures as `NoResponse` and everything else as `Other`, and reports a body it
+  cannot read (an I/O error mid-body, over ureq's 10 MB cap, invalid UTF-8) as `UnreadableBody`
+  instead of a transport failure.
+- `ApprovalStatus` gains the `OfflineApproved` variant. An exhaustive `match` on it needs a new arm;
+  only `require_approval_with_offline` ever returns it.
+- New direct dependencies `p256`, `sha2`, `base64`, `rsa` and `getrandom`, each already in the
+  dependency graph through `intyga-verify` at the same version — no new crate is pulled in.
+- Re-exports `verify_delegation`, `ApprovalRequirement`, `ApprovalWitness`, `RequesterIdentity`,
+  `RequirementFloor` and `VerifiedDelegation` from the verifier, which the offline API takes and
+  returns.
+
 ## [1.1.0]
 
 - No code change. The matched set moves together (`pnpm test:versions`); this release carries the

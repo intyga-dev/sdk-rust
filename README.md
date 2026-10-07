@@ -89,6 +89,57 @@ if !c.ok {
 
 With `client_id`/`client_secret`, the client exchanges them for a bearer token and re-exchanges automatically shortly before the `expires_in` the gateway reports (and once more on a `401`), so a long-lived client or a long `require_approval` wait never outlives its token. A `token` you pass yourself is used as-is and never refreshed.
 
+## Offline approval (DIV §5a)
+
+When the gateway cannot be reached, a relying party can still collect a real quorum approval out of
+band: it builds the challenge itself from a gateway-signed **trust bundle** exported earlier, the
+approvers review and sign it on a disconnected device, and the result is verified locally by the
+ordinary verifier. Nothing written to disk can authorize a later action.
+
+```rust
+use intyga_sdk::{ApprovalStatus, AuthorizeOptions, OfflineApprovalOptions, RequireApprovalOptions};
+
+let opts = RequireApprovalOptions {
+    authorize: AuthorizeOptions {
+        target: Some("prod-db-cluster-01".into()),
+        // The exact action ID the trust bundle's policy is keyed on.
+        action_type: Some("db.restart".into()),
+        ..Default::default()
+    },
+    ..Default::default()
+};
+// Opt in at THIS call site only. Falls back only when the gateway could not be asked
+// (connection failure, timeout, 5xx, five such polling failures in a row) — never on a 4xx, DENIED
+// or EXPIRED, and never when a polling streak contained a 4xx.
+let offline = OfflineApprovalOptions::new("/etc/myservice/intyga", "did:intyga:service:oncall", |challenge| {
+    // Show challenge.envelope (DIV1:…) and challenge.verification_code to the approvers, and return
+    // the SIG1:… strings they send back.
+    collect_from_approvers(challenge)
+});
+let r = client.require_approval_with_offline("Restart the primary database", &opts, &offline)?;
+match r.status {
+    ApprovalStatus::Approved => { /* online approval */ }
+    ApprovalStatus::OfflineApproved => { /* out-of-band approval: verified, redeemed, buffered */ }
+    _ => return Err("not authorized".into()),
+}
+
+// When connectivity returns, report what happened offline.
+client.reconcile_offline_approvals("/etc/myservice/intyga", None)?;
+```
+
+- **Trust bundle:** `save_trust_bundle`, `load_trust_bundle`, `verify_trust_bundle`,
+  `check_trust_bundle_freshness`, `approver_anchor`, `requirement_for`.
+- **Ceremony:** `create_offline_challenge`, `decode_challenge_envelope`, `sign_challenge_envelope`
+  (the approver's side), `encode_signature_envelope` / `decode_signature_envelope`,
+  `assemble_offline_receipt`.
+- **Running it yourself:** `use_offline_approval`, `FileRedemptionStore` (single use),
+  `pending_approvals`, `clear_pending_approval`.
+- **Trust-anchor files:** `parse_trust_anchor_file(text, TrustAnchorPurpose::Online | Offline)`,
+  `trust_anchor_approvers`.
+
+The on-disk layout (`trust-bundle.jws`, `gateway-key.jwk.json`, `.redeemed/`, `.pending/`) is shared
+with the other INTYGA SDKs, so tools in different languages can use one directory.
+
 ## Bring your own HTTP client
 
 The client is generic over a pluggable `Transport`. `Client::new(..)` uses a built-in blocking `ureq` transport (default feature `ureq-transport`); disable it and implement `Transport` to route requests through your own async/instrumented HTTP stack:
@@ -96,6 +147,19 @@ The client is generic over a pluggable `Transport`. `Client::new(..)` uses a bui
 ```rust
 let client = Client::with_transport(opts, MyTransport)?;
 ```
+
+`Transport::request` returns `Result<HttpResponse, TransportError>`, and the error variant matters:
+
+- **Every HTTP status — 3xx, 4xx and 5xx included — must come back as `Ok(HttpResponse)`.** Many HTTP
+  libraries (ureq among them) return an error for a non-2xx by default; unwrap it into an
+  `HttpResponse`. The client decides what a status means, and a 4xx must reach it as the gateway
+  refusing, never as an outage.
+- Return `TransportError::NoResponse` only when no HTTP response was received at all (DNS, connection
+  refused, TLS failure, timeout). It is the only error that lets `require_approval_with_offline` fall
+  back to an offline approval.
+- Return `TransportError::UnreadableBody` when a response arrived but its body could not be read, and
+  `TransportError::Other` for anything else. A plain `String` converts to `Other`, which never falls
+  back — so a transport that does not classify its errors fails closed.
 
 ## Also available in
 - TypeScript — [`@intyga/sdk`](https://github.com/intyga-dev/sdk)

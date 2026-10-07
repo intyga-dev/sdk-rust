@@ -5,6 +5,11 @@ All notable changes to `intyga-verify` (Rust) are documented here. The format fo
 
 ## [Unreleased]
 
+## [1.2.0]
+
+- No code change. The matched set moves together (`pnpm test:versions`); this release carries the
+  DIV §5a offline-approval layer in every SDK (`docs/OFFLINE-APPROVAL-SDK.md`).
+
 ## [1.1.0]
 
 - No code change. The matched set moves together (`pnpm test:versions`); this release carries the
